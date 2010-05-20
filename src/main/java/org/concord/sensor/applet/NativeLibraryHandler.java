@@ -12,6 +12,8 @@ import java.net.URL;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+import org.concord.sensor.nativelib.NativeVernierSensorDevice;
+
 public class NativeLibraryHandler {
     private URL origJarUrl;
 
@@ -36,6 +38,7 @@ public class NativeLibraryHandler {
         } else {
             throw new RuntimeException("Unsupported Operating System: " + System.getProperty("os.name"));
         }
+       System.setProperty(NativeVernierSensorDevice.VERNIER_NATIVE_LIB_LOADED, "true");
     }
     
     private File renameLib(String prefix, String suffix, File nativeLibDir) throws IOException {
