@@ -13,6 +13,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import org.concord.framework.data.stream.DataListener;
 import org.concord.framework.otrunk.OTControllerService;
 import org.concord.otrunk.applet.OTAppletViewer;
 import org.concord.sensor.state.OTSensorDataProxy;
@@ -50,7 +51,7 @@ public class OTSensorApplet extends OTAppletViewer {
         OTControllerService controllerService = otSensorProxy.getOTObjectService().createControllerService();
         sensorProxy = (SensorDataProxy) controllerService.getRealObject(otSensorProxy);
 
-        sensorProxy.addDataListener(new DefaultDataListener());
+        addDataListener(new DefaultDataListener());
     }
 
     public void startCollecting() {
@@ -101,5 +102,12 @@ public class OTSensorApplet extends OTAppletViewer {
         sensorProxy = null;
         super.destroy();
     }
-
+    
+    public void addDataListener(DataListener listener) {
+        sensorProxy.addDataListener(listener);
+    }
+    
+    public void removeDataListener(DataListener listener) {
+        sensorProxy.removeDataListener(listener);
+    }
 }
