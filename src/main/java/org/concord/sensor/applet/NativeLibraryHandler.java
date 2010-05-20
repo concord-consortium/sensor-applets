@@ -12,45 +12,47 @@ import java.net.URL;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
-import org.concord.sensor.nativelib.NativeVernierSensorDevice;
-
 public class NativeLibraryHandler {
-    
-    private File nativeLibJar;
-    private File nativeLib;
     private URL origJarUrl;
 
     public NativeLibraryHandler(URL nativeLibJarUrl) throws IOException {
         super();
-        this.nativeLibJar = File.createTempFile("vernier-goio-nar", ".jar");
         this.origJarUrl = nativeLibJarUrl;
     }
     
     public void initializeLibrary() throws MalformedURLException, IOException {
         // Download vernier native lib to system
-        downloadLibJar();
-        unpackLibJar();
+        File nativeLibJar = downloadLibJar();
+        File nativeLibDir = unpackLibJar(nativeLibJar);
         // load the native lib
-        renameLib();
-        loadLib();
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            File lib = renameLib("GoIO_DLL", ".dll", nativeLibDir);
+            File lib2 = renameLib("vernier_ccsd", ".dll", nativeLibDir);
+            loadLib(lib);
+            loadLib(lib2);
+        } else if (System.getProperty("os.name").startsWith("Mac")) {
+            File lib = renameLib("libvernier_ccsd", ".jnilib", nativeLibDir);
+            loadLib(lib);
+        } else {
+            throw new RuntimeException("Unsupported Operating System: " + System.getProperty("os.name"));
+        }
     }
     
-    private void renameLib() throws IOException {
+    private File renameLib(String prefix, String suffix, File nativeLibDir) throws IOException {
         // FIXME We need to handle Win32 as well
-        File origNativeLib = new File(nativeLibJar.getParentFile(), "libvernier_ccsd.jnilib");
+        File origNativeLib = new File(nativeLibDir, prefix + suffix);
 //        nativeLib = origNativeLib;
-        File tempNativeLib = File.createTempFile("libvernier_ccsd-", ".jnilib");
+        File tempNativeLib = File.createTempFile(prefix + "-", suffix);
         System.out.println("Created temp file: " + tempNativeLib);
         origNativeLib.renameTo(tempNativeLib);
-        nativeLib = tempNativeLib;
-        System.setProperty(NativeVernierSensorDevice.VERNIER_NATIVE_LIB_LOADED, "true");
+        return tempNativeLib;
     }
 
-    private void loadLib() {
-        System.load(nativeLib.getAbsolutePath());
+    private void loadLib(File lib) {
+        System.load(lib.getAbsolutePath());
     }
 
-    private void unpackLibJar() throws FileNotFoundException, IOException {
+    private File unpackLibJar(File nativeLibJar) throws FileNotFoundException, IOException {
         File endDir = nativeLibJar.getParentFile();
         JarInputStream zis = new JarInputStream(new FileInputStream(nativeLibJar));
         JarEntry fileEntry = zis.getNextJarEntry();
@@ -85,14 +87,17 @@ public class NativeLibraryHandler {
             fileEntry = zis.getNextJarEntry();
         }
         nativeLibJar.deleteOnExit();
+        return endDir;
     }
 
-    private void downloadLibJar() throws MalformedURLException, IOException {
+    private File downloadLibJar() throws MalformedURLException, IOException {
         URL nativeLibUrl = origJarUrl;
+        File outFile = File.createTempFile("vernier-goio-nar", ".jar");
         InputStream stream = nativeLibUrl.openStream();
         byte[] buffer = new byte[1024];
-        FileOutputStream fos = new FileOutputStream(nativeLibJar);
+        FileOutputStream fos = new FileOutputStream(outFile);
         downloadStream(buffer, stream, fos);
+        return outFile;
     }
 
     private void downloadStream(byte[] buffer, InputStream inputStream, OutputStream fileOutputStream)
