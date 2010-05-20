@@ -165,8 +165,10 @@ public class OTSensorApplet extends OTAppletViewer implements DataListener {
         System.out.print("  type(" + typeToString(event.getType()) + ")");
         System.out.println(", numSamples(" + event.getNumSamples() + ")");
         if (event.getData() != null && event.getNumSamples() > 0) {
+            float[] arr = new float[event.getNumSamples()];
+            System.arraycopy(event.getData(), 0, arr, 0, event.getNumSamples());
             System.out.println("    samples("
-                    + sampleStr(Arrays.copyOfRange(event.getData(), 0, event.getNumSamples())) + ")");
+                    + sampleStr(arr) + ")");
         }
     }
 
