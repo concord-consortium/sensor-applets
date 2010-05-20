@@ -32,7 +32,7 @@ public class OTSensorApplet extends OTAppletViewer {
     public void init() {
         try {
             // FIXME We need to handle win32 as well
-            URL nativeJarUrl = new URL(getCodeBase(), "vernier-goio-macosx-nar.jar");
+            URL nativeJarUrl = new URL(getCodeBase(), getNativeJarName());
             NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarUrl);
             handler.initializeLibrary();
         } catch (MalformedURLException e) {
@@ -42,6 +42,17 @@ public class OTSensorApplet extends OTAppletViewer {
         }
 
         super.init();
+    }
+
+
+
+    private String getNativeJarName() {
+        if(System.getProperty("os.name").startsWith("Windows")) {
+            return "vernier-goio-win32-nar.jar";
+        }else if(System.getProperty("os.name").startsWith("Mac")) {
+            return "vernier-goio-macosx-nar.jar";
+        }
+        return "vernier-goio-macosx-nar.jar";
     }
 
 
