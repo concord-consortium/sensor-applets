@@ -42,16 +42,17 @@ public class NativeLibraryHandler {
     }
     
     private File renameLib(String prefix, String suffix, File nativeLibDir) throws IOException {
-        // FIXME We need to handle Win32 as well
         File origNativeLib = new File(nativeLibDir, prefix + suffix);
-//        nativeLib = origNativeLib;
         File tempNativeLib = File.createTempFile(prefix + "-", suffix);
         System.out.println("Created temp file: " + tempNativeLib);
+        
         origNativeLib.renameTo(tempNativeLib);
+        
         return tempNativeLib;
     }
 
     private void loadLib(File lib) {
+        System.out.println("loading: " + lib.getAbsolutePath());
         System.load(lib.getAbsolutePath());
     }
 

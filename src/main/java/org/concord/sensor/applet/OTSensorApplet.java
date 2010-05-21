@@ -19,6 +19,22 @@ import org.concord.otrunk.applet.OTAppletViewer;
 import org.concord.sensor.state.OTSensorDataProxy;
 import org.concord.sensor.state.SensorDataProxy;
 
+/**
+ * This applet is an extension of the OTAppletViewer class. It is intended to be used specifically for
+ * reading sensor data and passing that off to a listener. Listeners can be created in Java or Javascript.
+ * 
+ * Basic usage:
+ * 1) Create a javascript listener that implements the org.concord.sensor.applet.JavascriptDataListener interface
+ * 2a) set the applet param "listenerPath" to the string object name for your listener
+ *   '<param name="listenerPath" value="jsListener" />'
+ *   OR
+ * 2b) create the listener bridge through the applet and register it in the applet
+ *   var bridge = applet.createJavascriptBridge("jsListener");
+ *   applet.addDataListener(bridge);
+ *   
+ * @author aunger
+ *
+ */
 public class OTSensorApplet extends OTAppletViewer {
     private static final long serialVersionUID = 1L;
     private static final Logger logger = Logger.getLogger(OTSensorApplet.class.getName());
@@ -27,11 +43,12 @@ public class OTSensorApplet extends OTAppletViewer {
     private JPanel mainPanel;
     private JButton startButton;
     private JButton stopButton;
+    
+    private DefaultDataListener defaultListener = new DefaultDataListener();
 
     @Override
     public void init() {
         try {
-            // FIXME We need to handle win32 as well
             URL nativeJarUrl = new URL(getCodeBase(), getNativeJarName());
             NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarUrl);
             handler.initializeLibrary();
@@ -44,8 +61,6 @@ public class OTSensorApplet extends OTAppletViewer {
         super.init();
     }
 
-
-
     private String getNativeJarName() {
         if(System.getProperty("os.name").startsWith("Windows")) {
             return "vernier-goio-win32-nar.jar";
@@ -55,14 +70,17 @@ public class OTSensorApplet extends OTAppletViewer {
         return "vernier-goio-macosx-nar.jar";
     }
 
-
-
     protected void initDataProxy() throws Exception {
         OTSensorDataProxy otSensorProxy = (OTSensorDataProxy) getOTrunk().getRoot();
         OTControllerService controllerService = otSensorProxy.getOTObjectService().createControllerService();
         sensorProxy = (SensorDataProxy) controllerService.getRealObject(otSensorProxy);
 
-        addDataListener(new DefaultDataListener());
+        if (getParameter("listenerPath") != null) {
+            DataListener jsListener = createJavascriptBridge(getParameter("listenerPath"));
+            addDataListener(jsListener);
+        } else {
+            addDataListener(defaultListener);
+        }
     }
 
     public void startCollecting() {
@@ -110,7 +128,11 @@ public class OTSensorApplet extends OTAppletViewer {
 
     @Override
     public void destroy() {
-        sensorProxy = null;
+        if (sensorProxy != null) {
+            sensorProxy.stop();
+            sensorProxy.removeDataListener(defaultListener);
+            sensorProxy = null;
+        }
         super.destroy();
     }
     
@@ -120,5 +142,9 @@ public class OTSensorApplet extends OTAppletViewer {
     
     public void removeDataListener(DataListener listener) {
         sensorProxy.removeDataListener(listener);
+    }
+    
+    public JavascriptDataBridge createJavascriptBridge(String jsObjectPath) {
+        return new JavascriptDataBridge(jsObjectPath, this);
     }
 }
