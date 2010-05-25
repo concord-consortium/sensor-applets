@@ -49,7 +49,8 @@ public class OTSensorApplet extends OTAppletViewer {
     @Override
     public void init() {
         try {
-            URL nativeJarUrl = new URL(getCodeBase(), getNativeJarName());
+            // URL nativeJarUrl = new URL(getCodeBase(), getNativeJarName());
+            URL nativeJarUrl = new URL("http://jnlp.concord.org/dev/org/concord/sensor/vernier/vernier-goio/" + getNativeJarName());
             NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarUrl);
             handler.initializeLibrary();
         } catch (MalformedURLException e) {
@@ -63,11 +64,11 @@ public class OTSensorApplet extends OTAppletViewer {
 
     private String getNativeJarName() {
         if(System.getProperty("os.name").startsWith("Windows")) {
-            return "vernier-goio-win32-nar.jar";
+            return "vernier-goio-win32-nar.jar?version-id=1.4.0";
         }else if(System.getProperty("os.name").startsWith("Mac")) {
-            return "vernier-goio-macosx-nar.jar";
+            return "vernier-goio-macosx-nar.jar?version-id=1.4.0";
         }
-        return "vernier-goio-macosx-nar.jar";
+        return "vernier-goio-macosx-nar.jar?version-id=1.4.0";
     }
 
     protected void initDataProxy() throws Exception {
