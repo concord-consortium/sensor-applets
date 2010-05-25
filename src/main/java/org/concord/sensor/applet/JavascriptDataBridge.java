@@ -29,10 +29,8 @@ public class JavascriptDataBridge implements DataListener {
     // We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
     private void handleEvent(DataStreamEvent event, String method) {
         String evalString = getJsEventCall(event, method);
-        System.out.println("Calling native: " + evalString);
         try {
-            Object result = window.eval(evalString);
-            System.out.println("javascript result: " + result);
+            window.eval(evalString);
         } catch (JSException e) {
             System.err.println("Javascript error: " + e.getMessage());
             e.printStackTrace();
