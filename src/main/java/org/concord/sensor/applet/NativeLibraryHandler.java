@@ -28,7 +28,9 @@ public class NativeLibraryHandler {
         File nativeLibDir = unpackLibJar(nativeLibJar);
         // load the native lib
         if (System.getProperty("os.name").startsWith("Windows")) {
-            File lib = renameLib("GoIO_DLL", ".dll", nativeLibDir);
+            // don't rename the GoIO_DLL, as apparently vernier_ccsd needs to find it by name
+            // it doesn't seem to have the same problem as the mac library
+            File lib = new File(nativeLibDir, "GoIO_DLL.dll");
             File lib2 = renameLib("vernier_ccsd", ".dll", nativeLibDir);
             loadLib(lib);
             loadLib(lib2);
@@ -41,14 +43,18 @@ public class NativeLibraryHandler {
        System.setProperty(NativeVernierSensorDevice.VERNIER_NATIVE_LIB_LOADED, "true");
     }
     
+    // On Mac, at least, only one instance of a native lib can be loaded per JVM. By renaming the library,
+    // we can get around this restriction.
     private File renameLib(String prefix, String suffix, File nativeLibDir) throws IOException {
         File origNativeLib = new File(nativeLibDir, prefix + suffix);
-        File tempNativeLib = File.createTempFile(prefix + "-", suffix);
+        File tempNativeLib = File.createTempFile(prefix + "-", suffix, nativeLibDir);
         System.out.println("Created temp file: " + tempNativeLib);
         
-        origNativeLib.renameTo(tempNativeLib);
-        
-        return tempNativeLib;
+        if (tempNativeLib.delete() && origNativeLib.renameTo(tempNativeLib)) {
+            return tempNativeLib;
+        } else {
+            throw new RuntimeException("Unable to rename " + origNativeLib + " to " + tempNativeLib);
+        }
     }
 
     private void loadLib(File lib) {
@@ -62,18 +68,16 @@ public class NativeLibraryHandler {
         JarEntry fileEntry = zis.getNextJarEntry();
         while (fileEntry != null) {
             String entryName = fileEntry.getName();
-            int lastSlash = entryName.lastIndexOf(File.separatorChar);
-            File file;
-            if (lastSlash > -1) {
-                File parent = new File(endDir, entryName.substring(0, lastSlash));
-                parent.mkdirs();
-                file = new File(parent, entryName.substring(lastSlash));
-            } else {
-                file = new File(endDir, entryName);
-            }
+            File file = new File(endDir, entryName);
+            
             if (fileEntry.isDirectory()) {
                 file.mkdirs();
             } else {
+                // make sure the parent directories exist
+                File parent = file.getParentFile();
+                if (parent != null && ! parent.exists()) {
+                    parent.mkdirs();
+                }
                 // extract the file
                 FileOutputStream fos = new FileOutputStream(file);
                 byte[] buf = new byte[1024];
@@ -96,7 +100,13 @@ public class NativeLibraryHandler {
 
     private File downloadLibJar() throws MalformedURLException, IOException {
         URL nativeLibUrl = origJarUrl;
-        File outFile = File.createTempFile("vernier-goio-nar", ".jar");
+        // put it in it's own directory, since on windows we can't guarantee the temp dir will be unique per jvm
+        File outDir = File.createTempFile("vsl", "").getAbsoluteFile();
+        // createTempFile creates the file for us, so delete it and make the directory, throw an exception if either return false
+        if (! outDir.delete() || ! outDir.mkdirs()) {
+            throw new RuntimeException("failed to create temp dir: " + outDir);
+        }
+        File outFile = File.createTempFile("vernier-goio-nar", ".jar", outDir);
         InputStream stream = nativeLibUrl.openStream();
         byte[] buffer = new byte[1024];
         FileOutputStream fos = new FileOutputStream(outFile);
