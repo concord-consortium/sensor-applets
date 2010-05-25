@@ -1,0 +1,51 @@
+<html>
+  <head>
+    <title>Sensor Applet Test</title>
+    <script type="text/javascript">
+        var list;
+        var jsListener = {
+        	dataReceived: function(type,count,data) {
+                list.innerHTML += "<li>" + type + ", " + count + ", " + data + "</li>";
+		    },
+		    dataStreamEvent: function(type,count,data) {
+			    list.innerHTML += "<li>" + type + ", " + count + ", " + data + "</li>";
+		    }
+	    };
+    </script>
+  </head>
+  <body>
+    <h1>Sensor Applet test</h1>
+    <p>
+    <!-- Make sure to run 'mvn dependency:copy-dependencies to initialize the target/dependency directory! -->
+      <applet id="sensor" code="org.concord.sensor.applet.OTSensorApplet"
+width="200" height="50"
+archive="
+target/dependency/response-cache-0.1.0-SNAPSHOT.jar,
+target/dependency/framework-0.1.0-SNAPSHOT.jar,
+target/dependency/swing-0.1.0-SNAPSHOT.jar,
+target/dependency/frameworkview-0.1.0-SNAPSHOT.jar,
+target/dependency/data-0.2.0-SNAPSHOT.jar,
+target/dependency/jug-1.1.2.jar,
+target/dependency/sensor-native-0.1.0-SNAPSHOT.jar,
+target/dependency/apple-support-0.1.0-SNAPSHOT.jar,
+target/dependency/sensor-0.2.0-SNAPSHOT.jar,
+target/dependency/jdom-1.0.jar,
+target/dependency/rxtx-comm-2.1.7-r2.jar,
+target/dependency/otrunk-0.2.0-SNAPSHOT.jar,
+target/sensor-applets-0.1.0-SNAPSHOT.jar
+" MAYSCRIPT="true">
+  <param name="url" value="simple.otml"/>
+  <param name="name" value="sensor"/>
+  <param name="listenerPath" value="jsListener"/>
+  <param name="MAYSCRIPT" value="true"/>
+        Your browser is completely ignoring the applet tag!
+      </applet>
+    </p>
+    <div>
+      <ul id='data-list' />
+    </div>
+    <script type="text/javascript">
+        list = document.getElementById('data-list');
+    </script>
+  </body>
+</html>
