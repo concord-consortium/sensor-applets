@@ -3,6 +3,7 @@
     <title>Sensor Applet Test</title>
     <script type="text/javascript">
         var list;
+        var sensor;
         var jsListener = {
         	dataReceived: function(type,count,data) {
                 list.innerHTML += "<li>" + type + ", " + count + ", " + data + "</li>";
@@ -11,6 +12,19 @@
 			    list.innerHTML += "<li>" + type + ", " + count + ", " + data + "</li>";
 		    }
 	    };
+
+	    function startSensor() {
+		    sensor.startCollecting();
+	    }
+
+	    function stopSensor() {
+		    sensor.stopCollecting();
+	    }
+
+	    function clearData() {
+	    	sensor.stopCollecting();
+		    list.innerHTML = "";
+	    }
     </script>
   </head>
   <body>
@@ -38,15 +52,22 @@ target/sensor-applets-0.1.0-SNAPSHOT.jar
   <param name="resource" value="/simple.otml" />
   <param name="name" value="sensor"/>
   <param name="listenerPath" value="jsListener"/>
+  <param name="hideButtons" value="false"/>
   <param name="MAYSCRIPT" value="true"/>
         Your browser is completely ignoring the applet tag!
       </applet>
     </p>
     <div>
+      <a href="javascript:startSensor();">Start</a>
+      <a href="javascript:stopSensor();">Stop</a>
+      <a href="javascript:clearData();">Clear</a>
+    </div>
+    <div>
       <ul id='data-list' />
     </div>
     <script type="text/javascript">
         list = document.getElementById('data-list');
+        sensor = document.getElementById('sensor');
     </script>
   </body>
 </html>
