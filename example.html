@@ -16,7 +16,7 @@
   <body>
     <h1>Sensor Applet test</h1>
     <p>
-    <!-- Make sure to run 'mvn dependency:copy-dependencies to initialize the target/dependency directory! -->
+    <!-- Make sure to run 'mvn dependency:copy-dependencies package' to initialize the target/dependency directory and sensor-applet jar! -->
       <applet id="sensor" code="org.concord.sensor.applet.OTSensorApplet"
 width="200" height="50"
 archive="
@@ -34,7 +34,8 @@ target/dependency/rxtx-comm-2.1.7-r2.jar,
 target/dependency/otrunk-0.2.0-SNAPSHOT.jar,
 target/sensor-applets-0.1.0-SNAPSHOT.jar
 " MAYSCRIPT="true">
-  <param name="url" value="simple.otml"/>
+  <!-- <param name="url" value="src/main/resources/simple.otml"/> -->
+  <param name="resource" value="/simple.otml" />
   <param name="name" value="sensor"/>
   <param name="listenerPath" value="jsListener"/>
   <param name="MAYSCRIPT" value="true"/>
