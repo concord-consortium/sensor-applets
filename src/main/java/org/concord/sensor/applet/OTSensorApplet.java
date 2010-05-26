@@ -95,29 +95,29 @@ public class OTSensorApplet extends OTAppletViewer {
     @Override
     public void setupView() {
         try {
-            System.out.println("Starting to set up view.");
             initDataProxy();
-            System.out.println("Finished init'ing sensor proxy");
             mainPanel = new JPanel(new FlowLayout());
-            startButton = new JButton("Start");
-            stopButton = new JButton("Stop");
-            mainPanel.add(startButton);
-            mainPanel.add(stopButton);
-
+            if (getParameter("hideButtons") == null || getParameter("hideButtons").matches("(false|no)")) {
+                startButton = new JButton("Start");
+                stopButton = new JButton("Stop");
+                mainPanel.add(startButton);
+                mainPanel.add(stopButton);
+    
+                
+    
+                startButton.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        startCollecting();
+                    }
+                });
+    
+                stopButton.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        stopCollecting();
+                    }
+                });
+            }
             getContentPane().add(mainPanel);
-
-            startButton.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    startCollecting();
-                }
-            });
-
-            stopButton.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    stopCollecting();
-                }
-            });
-            System.out.println("Finished view setup.");
         } catch (Exception e1) {
             logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e1);
             getContentPane().add(new JLabel("Setup failure."));
