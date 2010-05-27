@@ -44,6 +44,8 @@ public class OTSensorApplet extends OTAppletViewer {
     private JButton startButton;
     private JButton stopButton;
     
+    private boolean sensorSetupSucceeded = false;
+    
     private DefaultDataListener defaultListener = new DefaultDataListener();
 
     @Override
@@ -60,6 +62,18 @@ public class OTSensorApplet extends OTAppletViewer {
         }
 
         super.init();
+    }
+    
+    @Override
+    protected void loadState() {
+        super.loadState();
+        try {
+            initDataProxy();
+            sensorSetupSucceeded = true;
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
+            sensorSetupSucceeded = false;
+        }
     }
 
     private String getNativeJarName() {
@@ -94,17 +108,14 @@ public class OTSensorApplet extends OTAppletViewer {
 
     @Override
     public void setupView() {
-        try {
-            initDataProxy();
-            mainPanel = new JPanel(new FlowLayout());
-            if (getParameter("hideButtons") == null || getParameter("hideButtons").matches("(false|no)")) {
+        mainPanel = new JPanel(new FlowLayout());
+        if (getParameter("hideButtons") == null || getParameter("hideButtons").matches("(false|no)")) {
+            if (sensorSetupSucceeded) {
                 startButton = new JButton("Start");
                 stopButton = new JButton("Stop");
                 mainPanel.add(startButton);
                 mainPanel.add(stopButton);
-    
-                
-    
+
                 startButton.addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e) {
                         startCollecting();
@@ -116,15 +127,18 @@ public class OTSensorApplet extends OTAppletViewer {
                         stopCollecting();
                     }
                 });
+            } else {
+                mainPanel.add(new JLabel("Sensor setup failure."));
             }
-            getContentPane().add(mainPanel);
-        } catch (Exception e1) {
-            logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e1);
-            getContentPane().add(new JLabel("Setup failure."));
         }
+        getContentPane().add(mainPanel);  
         
         getContentPane().validate();
         getContentPane().repaint();
+    }
+    
+    public boolean readyToCollectData() {
+        return (isMasterLoaded() && sensorSetupSucceeded);
     }
 
     @Override
