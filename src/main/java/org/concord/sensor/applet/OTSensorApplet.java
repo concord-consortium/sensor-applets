@@ -6,6 +6,8 @@ import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -99,11 +101,21 @@ public class OTSensorApplet extends OTAppletViewer {
     }
 
     public void startCollecting() {
-        sensorProxy.start();
+        AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+            public Boolean run() {
+                sensorProxy.start();
+                return Boolean.TRUE;
+            }
+        });
     }
 
     public void stopCollecting() {
-        sensorProxy.stop();
+        AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+            public Boolean run() {
+                sensorProxy.stop();
+                return Boolean.TRUE;
+            }
+        });
     }
 
     @Override
