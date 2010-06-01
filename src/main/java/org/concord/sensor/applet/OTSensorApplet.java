@@ -49,6 +49,7 @@ public class OTSensorApplet extends OTAppletViewer {
     private boolean sensorSetupSucceeded = false;
     
     private DefaultDataListener defaultListener = new DefaultDataListener();
+    private JavascriptDataBridge jsListener;
 
     @Override
     public void init() {
@@ -72,9 +73,16 @@ public class OTSensorApplet extends OTAppletViewer {
         try {
             initDataProxy();
             sensorSetupSucceeded = true;
+            notifyListenerOfStartup();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
             sensorSetupSucceeded = false;
+        }
+    }
+
+    private void notifyListenerOfStartup() {
+        if (jsListener != null) {
+            jsListener.sensorsReady();
         }
     }
 
@@ -93,7 +101,7 @@ public class OTSensorApplet extends OTAppletViewer {
         sensorProxy = (SensorDataProxy) controllerService.getRealObject(otSensorProxy);
 
         if (getParameter("listenerPath") != null) {
-            DataListener jsListener = createJavascriptBridge(getParameter("listenerPath"));
+            jsListener = createJavascriptBridge(getParameter("listenerPath"));
             addDataListener(jsListener);
         } else {
             addDataListener(defaultListener);
