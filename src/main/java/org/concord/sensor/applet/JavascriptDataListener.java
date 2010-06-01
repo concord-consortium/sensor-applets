@@ -16,4 +16,9 @@ public interface JavascriptDataListener {
      * @param data -- float array of actual data. Length with match numberOfSamples
      */
     public void dataStreamEvent(int dataEventType, int numberOfSamples, float[] data);
+    
+    /**
+     * Called when the applet has initialized and the sensors are ready to go
+     */
+    public void sensorsReady();
 }

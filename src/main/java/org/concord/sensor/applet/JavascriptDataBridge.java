@@ -66,4 +66,8 @@ public class JavascriptDataBridge implements DataListener {
         return buf.toString();
     }
 
+    public void sensorsReady() {
+        window.eval(handlerPath + ".sensorsReady();");
+    }
+
 }
