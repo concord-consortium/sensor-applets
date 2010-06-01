@@ -8,12 +8,16 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+
+import netscape.javascript.JSObject;
 
 import org.concord.framework.data.stream.DataListener;
 import org.concord.framework.otrunk.OTControllerService;
@@ -50,6 +54,11 @@ public class OTSensorApplet extends OTAppletViewer {
     
     private DefaultDataListener defaultListener = new DefaultDataListener();
     private JavascriptDataBridge jsListener;
+    private Timer timer;
+    
+    public enum State {
+        READY, RUNNING, STOPPED, UNKNOWN
+    }
 
     @Override
     public void init() {
@@ -74,6 +83,7 @@ public class OTSensorApplet extends OTAppletViewer {
             initDataProxy();
             sensorSetupSucceeded = true;
             notifyListenerOfStartup();
+            initStateListening();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
             sensorSetupSucceeded = false;
@@ -83,6 +93,60 @@ public class OTSensorApplet extends OTAppletViewer {
     private void notifyListenerOfStartup() {
         if (jsListener != null) {
             jsListener.sensorsReady();
+        }
+    }
+    
+    private void initStateListening() {
+        final String statePath = getParameter("sensorStatePath");
+        final JSObject window = JSObject.getWindow(this);
+        // if statePath is defined, and it's an object
+        if (statePath != null && window.eval(statePath) != null) {
+            // poll for changes in state
+            TimerTask stateChangePoll = new TimerTask() {
+                private State currentState = State.READY;
+                
+                @Override
+                public void run() {
+                    State newState = getState((String)window.eval(statePath));
+                    if (currentState != newState) {
+                        switch (newState) {
+                        case READY:
+                            // reset sensor
+                            stopCollecting();
+                            break;
+                        case RUNNING:
+                            // start collecting
+                            startCollecting();
+                            break;
+                        case STOPPED:
+                            // stop collecting
+                            stopCollecting();
+                            break;
+                        case UNKNOWN:
+                            // how do we handle this? do nothing for now
+                            break;
+                        default:
+                            // do nothing
+                            break;
+                        }
+                        currentState = newState;
+                    }
+                }
+                
+                private State getState(String strState) {
+                    if ("ready".equals(strState)) {
+                        return State.READY;
+                    } else if ("running".equals(strState)) {
+                        return State.RUNNING;
+                    } else if ("stopped".equals(strState)) {
+                        return State.STOPPED;
+                    }
+                    return State.UNKNOWN;
+                }
+            };
+            
+            timer = new Timer();
+            timer.schedule(stateChangePoll, 500, 200);
         }
     }
 
@@ -163,6 +227,10 @@ public class OTSensorApplet extends OTAppletViewer {
 
     @Override
     public void destroy() {
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
         if (sensorProxy != null) {
             sensorProxy.stop();
             sensorProxy.removeDataListener(defaultListener);
