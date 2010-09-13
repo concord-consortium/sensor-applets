@@ -63,8 +63,8 @@ public class OTSensorApplet extends OTAppletViewer {
     @Override
     public void init() {
         try {
-            // URL nativeJarUrl = new URL(getCodeBase(), getNativeJarName());
-            URL nativeJarUrl = new URL("http://jnlp.concord.org/dev/org/concord/sensor/vernier/vernier-goio/" + getNativeJarName());
+            URL nativeJarUrl = new URL(getCodeBase() + "org/concord/sensor/vernier/vernier-goio/" +  getNativeJarName());
+            // URL nativeJarUrl = new URL("http://jnlp.concord.org/dev/org/concord/sensor/vernier/vernier-goio/" + getNativeJarName());
             NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarUrl);
             handler.initializeLibrary();
         } catch (MalformedURLException e) {
@@ -154,7 +154,13 @@ public class OTSensorApplet extends OTAppletViewer {
         if(System.getProperty("os.name").startsWith("Windows")) {
             return "vernier-goio-win32-nar.jar?version-id=1.4.0";
         }else if(System.getProperty("os.name").startsWith("Mac")) {
-            return "vernier-goio-macosx-nar.jar?version-id=1.4.0";
+        	if(System.getProperty("os.arch").startsWith("ppc")) {
+        		return "vernier-goio-macosx-ppc7400-nar.jar";
+        	}else if(System.getProperty("os.arch").startsWith("i386")) {
+        		return "vernier-goio-macosx-i386-nar.jar";
+        	}else if(System.getProperty("os.arch").startsWith("x86_64")) {
+        		return "vernier-goio-macosx-x86_64-nar.jar";
+        	}      
         }
         return "vernier-goio-macosx-nar.jar?version-id=1.4.0";
     }
