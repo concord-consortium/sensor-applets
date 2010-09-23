@@ -35,17 +35,8 @@ public class NativeLibraryHandler {
             loadLib(lib);
             loadLib(lib2);
         } else if (System.getProperty("os.name").startsWith("Mac")) {
-        	File lib;
-        	if(System.getProperty("os.arch").startsWith("ppc")) {
-        		lib = renameLib("libvernier_ccsd_ppc7400", ".jnilib", nativeLibDir);
-        		loadLib(lib);
-        	}else if(System.getProperty("os.arch").startsWith("i386")) {
-        		lib = renameLib("libvernier_ccsd_i386", ".jnilib", nativeLibDir);
-        		loadLib(lib);
-        	}else  {
-        		lib = renameLib("libvernier_ccsd_x86_64", ".jnilib", nativeLibDir);
-        		loadLib(lib);
-        	}
+        	File lib = renameLib("libvernier_ccsd", ".jnilib", nativeLibDir);
+        	loadLib(lib);
         } else {
             throw new RuntimeException("Unsupported Operating System: " + System.getProperty("os.name"));
         }
