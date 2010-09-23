@@ -15,11 +15,11 @@ import java.util.jar.JarInputStream;
 import org.concord.sensor.nativelib.NativeVernierSensorDevice;
 
 public class NativeLibraryHandler {
-    private URL origJarUrl;
+    private String origJarPath;
 
-    public NativeLibraryHandler(URL nativeLibJarUrl) throws IOException {
+    public NativeLibraryHandler(String nativeLibJarPath) throws IOException {
         super();
-        this.origJarUrl = nativeLibJarUrl;
+        this.origJarPath = nativeLibJarPath;
     }
     
     public void initializeLibrary() throws MalformedURLException, IOException {
@@ -99,7 +99,7 @@ public class NativeLibraryHandler {
     }
 
     private File downloadLibJar() throws MalformedURLException, IOException {
-        URL nativeLibUrl = origJarUrl;
+        String nativeLibPath = origJarPath;
         // put it in it's own directory, since on windows we can't guarantee the temp dir will be unique per jvm
         File outDir = File.createTempFile("vsl", "").getAbsoluteFile();
         // createTempFile creates the file for us, so delete it and make the directory, throw an exception if either return false
@@ -107,7 +107,8 @@ public class NativeLibraryHandler {
             throw new RuntimeException("failed to create temp dir: " + outDir);
         }
         File outFile = File.createTempFile("vernier-goio-nar", ".jar", outDir);
-        InputStream stream = nativeLibUrl.openStream();
+        //InputStream stream = nativeLibUrl.openStream();
+        InputStream stream = this.getClass().getResourceAsStream(nativeLibPath);
         byte[] buffer = new byte[1024];
         FileOutputStream fos = new FileOutputStream(outFile);
         downloadStream(buffer, stream, fos);
