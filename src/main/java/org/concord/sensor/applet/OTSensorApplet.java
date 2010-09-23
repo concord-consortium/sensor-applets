@@ -155,7 +155,7 @@ public class OTSensorApplet extends OTAppletViewer {
             return "vernier-goio-win32-nar.jar?version-id=1.4.0";
         }else if(System.getProperty("os.name").startsWith("Mac")) {
         	if(System.getProperty("os.arch").startsWith("ppc")) {
-        		return "vernier-goio-macosx-ppc7400-nar.jar";
+        		return "vernier-goio-macosx-ppc-nar.jar";
         	}else if(System.getProperty("os.arch").startsWith("i386")) {
         		return "vernier-goio-macosx-i386-nar.jar";
         	}else if(System.getProperty("os.arch").startsWith("x86_64")) {
