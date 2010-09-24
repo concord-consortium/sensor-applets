@@ -63,7 +63,7 @@ public class OTSensorApplet extends OTAppletViewer {
     @Override
     public void init() {
         try {
-            String nativeJarPath = new String("../vernier/vernier-goio/" +  getNativeJarName());
+            String nativeJarPath = new String("/jnlp/org/concord/sensor/vernier/vernier-goio/" +  getNativeJarName());
             // /jnlp/org/concord/sensor/vernier/vernier-goio/vernier-goio-<os-and-arch>-nar.jar
             // URL nativeJarUrl = new URL("http://jnlp.concord.org/dev/org/concord/sensor/vernier/vernier-goio/" + getNativeJarName());
             NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarPath);
