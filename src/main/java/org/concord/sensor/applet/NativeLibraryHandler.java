@@ -108,7 +108,7 @@ public class NativeLibraryHandler {
         }
         File outFile = File.createTempFile("vernier-goio-nar", ".jar", outDir);
         //InputStream stream = nativeLibUrl.openStream();
-        InputStream stream = this.getClass().getResourceAsStream(nativeLibPath);
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream(nativeLibPath);
         byte[] buffer = new byte[1024];
         FileOutputStream fos = new FileOutputStream(outFile);
         downloadStream(buffer, stream, fos);
