@@ -5,7 +5,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Timer;
@@ -154,7 +153,7 @@ public class OTSensorApplet extends OTAppletViewer {
 
     private String getNativeJarName() {
         if(System.getProperty("os.name").startsWith("Windows")) {
-            return "vernier-goio-win32-nar.jar?version-id=1.4.0";
+            return "vernier-goio-win32-nar.jar";
         }else if(System.getProperty("os.name").startsWith("Mac")) {
         	if(System.getProperty("os.arch").startsWith("ppc")) {
         		return "vernier-goio-macosx-ppc-nar.jar";
@@ -181,12 +180,17 @@ public class OTSensorApplet extends OTAppletViewer {
     }
 
     public void startCollecting() {
-        AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-            public Boolean run() {
-                sensorProxy.start();
-                return Boolean.TRUE;
-            }
-        });
+    	logger.log(Level.INFO, "starting collection: ");
+    	try {
+            AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                public Boolean run() {
+                    sensorProxy.start();
+                    return Boolean.TRUE;
+                }
+            });    		
+    	} catch(Exception e) {
+            logger.log(Level.SEVERE, "error starting collection: ", e);
+        }
     }
 
     public void stopCollecting() {
