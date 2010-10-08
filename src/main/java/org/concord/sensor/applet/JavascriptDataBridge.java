@@ -34,6 +34,9 @@ public class JavascriptDataBridge implements DataListener {
         } catch (JSException e) {
             System.err.println("Javascript error: " + e.getMessage());
             e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("Java error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
