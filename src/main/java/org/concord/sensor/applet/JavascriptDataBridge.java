@@ -10,14 +10,41 @@ import org.concord.framework.data.stream.DataStreamEvent;
 import netscape.javascript.JSObject;
 
 public class JavascriptDataBridge implements DataListener {
-    private JSObject window;
     private String handlerPath;
+	public Applet applet;
     
     public JavascriptDataBridge(String javascriptObjectPath, Applet applet) {
-        window = JSObject.getWindow(applet);
+    	this.applet = applet;
         handlerPath = javascriptObjectPath;
+        
+//        (new Thread () {
+//        	public void run() {
+//            	for (int i = 0; i < 200; i++) {
+//            		JSObject window = JSObject.getWindow(JavascriptDataBridge.this.applet);
+//            		System.out.println("checking for window ... " + i);
+//            		if(window != null) {
+//            			System.out.println("found window ... ");
+//            			return;
+//            		}
+//            		try {
+//        				Thread.sleep(50);
+//        			} catch (InterruptedException e) {
+//        				e.printStackTrace();
+//        			}
+//            	}
+//        	}
+//        }).start();
+
     }
     
+    public JSObject getWindow() {
+    	JSObject window = JSObject.getWindow(applet);
+    	if (window == null) {
+    		System.out.println("*** JavascriptDataBridge: JSObject.getWindow request to browser returning null  ...");
+    	}
+    	return window;
+    }
+
     public void dataReceived(DataStreamEvent dataEvent) {
         handleEvent(dataEvent, "dataReceived");
     }
@@ -30,7 +57,8 @@ public class JavascriptDataBridge implements DataListener {
     private void handleEvent(DataStreamEvent event, String method) {
         String evalString = getJsEventCall(event, method);
         try {
-            window.eval(evalString);
+        	System.out.println("calling JavaScript: " + evalString);
+        	getWindow().eval(evalString);
         } catch (JSException e) {
             System.err.println("Javascript error: " + e.getMessage());
             e.printStackTrace();
@@ -70,7 +98,9 @@ public class JavascriptDataBridge implements DataListener {
     }
 
     public void sensorsReady() {
-        window.eval(handlerPath + ".sensorsReady();");
+    	String script = handlerPath + ".sensorsReady();";
+    	System.out.println("calling JavaScript: " + script);
+    	getWindow().eval(script);
     }
 
 }
