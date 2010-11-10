@@ -25,7 +25,7 @@
       </services>
       <root>
         <OTSensorDataProxy local_id="dataproducer">
-          <name>Motion</name>
+          <name>Temperature</name>
           <request>
             <OTExperimentRequest>
               <period>0.1</period>
