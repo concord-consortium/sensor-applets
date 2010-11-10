@@ -80,16 +80,32 @@ public class OTSensorApplet extends OTAppletViewer {
     @Override
     protected void loadState() {
         super.loadState();
+//        try {
+//            initDataProxy();
+//            sensorSetupSucceeded = true;
+//            notifyListenerOfStartup();
+//            initStateListening();
+//        } catch (Exception e) {
+//            logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
+//            sensorSetupSucceeded = false;
+//        }
+    }
+    
+    public void initSensorInterface(String listenerPath) {
         try {
-            initDataProxy();
+        	System.out.println("calling: initDataProxy()");
+            initDataProxy(listenerPath);
             sensorSetupSucceeded = true;
+        	System.out.println("calling: notifyListenerOfStartup()");
             notifyListenerOfStartup();
+        	System.out.println("calling: initStateListening()");
             initStateListening();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
             sensorSetupSucceeded = false;
         }
     }
+ 
 
     private void notifyListenerOfStartup() {
         if (jsListener != null) {
@@ -100,6 +116,10 @@ public class OTSensorApplet extends OTAppletViewer {
     private void initStateListening() {
         final String statePath = getParameter("sensorStatePath");
         final JSObject window = JSObject.getWindow(this);
+    	if (window == null) {
+    		System.out.println("*** initStateListening: JSObject.getWindow request to browser returning null  ...");
+    	}
+
         // if statePath is defined, and it's an object
         if (statePath != null && window.eval(statePath) != null) {
             // poll for changes in state
@@ -166,13 +186,13 @@ public class OTSensorApplet extends OTAppletViewer {
         return "vernier-goio-macosx-nar.jar?version-id=1.4.0";
     }
 
-    protected void initDataProxy() throws Exception {
+    protected void initDataProxy(String listenerPath) throws Exception {
         OTSensorDataProxy otSensorProxy = (OTSensorDataProxy) getOTrunk().getRoot();
         OTControllerService controllerService = otSensorProxy.getOTObjectService().createControllerService();
         sensorProxy = (SensorDataProxy) controllerService.getRealObject(otSensorProxy);
 
-        if (getParameter("listenerPath") != null) {
-            jsListener = createJavascriptBridge(getParameter("listenerPath"));
+        if (listenerPath != null) {
+            jsListener = createJavascriptBridge(listenerPath);
             addDataListener(jsListener);
         } else {
             addDataListener(defaultListener);
