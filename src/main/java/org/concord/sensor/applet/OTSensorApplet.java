@@ -76,7 +76,6 @@ public class OTSensorApplet extends OTAppletViewer {
         super.init();
     }
 
-    @Override
     public boolean initSensorInterface(String listenerPath) {
         try {
             System.out.println("calling: initDataProxy()");
@@ -174,18 +173,31 @@ public class OTSensorApplet extends OTAppletViewer {
         return "vernier-goio-macosx-nar.jar?version-id=1.4.0";
     }
 
-    protected void initDataProxy() throws Exception {
-        OTSensorDataProxy otSensorProxy = (OTSensorDataProxy) getOTrunk().getRoot();
-        OTControllerService controllerService = otSensorProxy.getOTObjectService().createControllerService();
-        sensorProxy = (SensorDataProxy) controllerService.getRealObject(otSensorProxy);
+    protected void initDataProxy(String listenerPath) throws Exception {
+      OTSensorDataProxy otSensorProxy = (OTSensorDataProxy)getOTrunk().getRoot();
+      OTControllerService controllerService = otSensorProxy.getOTObjectService().createControllerService();
+      this.sensorProxy = ((SensorDataProxy)controllerService.getRealObject(otSensorProxy));
 
-        if (getParameter("listenerPath") != null) {
-            jsListener = createJavascriptBridge(getParameter("listenerPath"));
-            addDataListener(jsListener);
-        } else {
-            addDataListener(defaultListener);
-        }
+      if (listenerPath != null) {
+        this.jsListener = createJavascriptBridge(listenerPath);
+        addDataListener(this.jsListener);
+      } else {
+        addDataListener(this.defaultListener);
+      }
     }
+
+    // protected void initDataProxy() throws Exception {
+    //     OTSensorDataProxy otSensorProxy = (OTSensorDataProxy) getOTrunk().getRoot();
+    //     OTControllerService controllerService = otSensorProxy.getOTObjectService().createControllerService();
+    //     sensorProxy = (SensorDataProxy) controllerService.getRealObject(otSensorProxy);
+    // 
+    //     if (getParameter("listenerPath") != null) {
+    //         jsListener = createJavascriptBridge(getParameter("listenerPath"));
+    //         addDataListener(jsListener);
+    //     } else {
+    //         addDataListener(defaultListener);
+    //     }
+    // }
 
     public void startCollecting() {
         AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
