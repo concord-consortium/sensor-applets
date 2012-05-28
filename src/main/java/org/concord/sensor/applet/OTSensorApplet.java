@@ -75,19 +75,28 @@ public class OTSensorApplet extends OTAppletViewer {
 
         super.init();
     }
-    
+
+    @Override
+    public boolean initSensorInterface(String listenerPath) {
+        try {
+            System.out.println("calling: initDataProxy()");
+            initDataProxy(listenerPath);
+            this.sensorSetupSucceeded = true;
+            System.out.println("calling: notifyListenerOfStartup()");
+            notifyListenerOfStartup();
+            System.out.println("calling: initStateListening()");
+            initStateListening();
+            return true;
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
+            this.sensorSetupSucceeded = false;
+        }
+        return false;
+    }
+
     @Override
     protected void loadState() {
         super.loadState();
-        try {
-            initDataProxy();
-            sensorSetupSucceeded = true;
-            notifyListenerOfStartup();
-            initStateListening();
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to set up sensor proxy!", e);
-            sensorSetupSucceeded = false;
-        }
     }
 
     private void notifyListenerOfStartup() {
