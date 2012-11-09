@@ -17,7 +17,7 @@
 				<OTInterfaceManager local_id="interface_manager">
 					<deviceConfigs>
 						<OTDeviceConfig name="Vernier go link">
-							<deviceId>14</deviceId>
+							<deviceId>13</deviceId>
 							<configString>none</configString>
 						</OTDeviceConfig>
 					</deviceConfigs>

@@ -63,10 +63,12 @@ public class OTSensorApplet extends OTAppletViewer {
     @Override
     public void init() {
         try {
-            URL nativeJarUrl = new URL(getCodeBase() + "org/concord/sensor/vernier/vernier-goio/" +  getNativeJarName());
-            // URL nativeJarUrl = new URL("http://jnlp.concord.org/dev/org/concord/sensor/vernier/vernier-goio/" + getNativeJarName());
-            NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarUrl);
-            handler.initializeLibrary();
+        	if (Boolean.parseBoolean(getParameter("useNativeLib"))) {
+        		URL nativeJarUrl = new URL(getCodeBase() + "org/concord/sensor/vernier/vernier-goio/" +  getNativeJarName());
+        		// URL nativeJarUrl = new URL("http://jnlp.concord.org/dev/org/concord/sensor/vernier/vernier-goio/" + getNativeJarName());
+        		NativeLibraryHandler handler = new NativeLibraryHandler(nativeJarUrl);
+        		handler.initializeLibrary();
+        	}
         } catch (MalformedURLException e) {
             logger.log(Level.SEVERE, "Native sensor lib url invalid!", e);
         } catch (IOException e) {
