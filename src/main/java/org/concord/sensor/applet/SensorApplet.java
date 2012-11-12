@@ -1,5 +1,6 @@
 package org.concord.sensor.applet;
 
+import java.awt.EventQueue;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.logging.Logger;
@@ -64,9 +65,13 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		// Create the data bridge
 		jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
 
-		setupDevice();
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				setupDevice();
 
-		jsBridge.sensorsReady();
+				jsBridge.sensorsReady();
+			}
+		});
 	}
 
 	public void stopCollecting() {
