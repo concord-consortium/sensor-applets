@@ -20,8 +20,19 @@ import org.concord.sensor.impl.SensorUtilJava;
 
 /**
  * This applet expects the following params:
- *   device: the device name to use (supports: golink, labquest, pseudo)
- *   probeType: The probe type to use (supports: temperature, light, distance)
+ *   device: the device name to use (supports: golink, labquest, pseudo, manual)
+ *     - if 'manual', you will also need to specify:
+ *       deviceId (int): the device id you want to use
+ *       openString (String; optional): the open string needed to be passed to the device (some devices don't need this)
+ *   probeType: The probe type to use (supports: temperature, light, distance, manual)
+ *     - if 'manual', you will also need to specify:
+ *       period (float): how often to take a sample
+ *       precision (int): how many significant digits to report
+ *       min (float): min supported value
+ *       max (float): max supported value
+ *       sensorPort (int): which port the sensor is attached to the device
+ *       stepSize (float): the maximum step size between values
+ *       sensorType (int): one of the constants from SensorConfig (eg SensorConfig.QUANTITY_TEMPERATURE)
  * @author aunger
  *
  */
@@ -155,7 +166,9 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		deviceFactory = new JavaDeviceFactory();
 		
 		int deviceId = getDeviceId();
+		logger.info("Creating device");
 		device = deviceFactory.createDevice(new DeviceConfigImpl(deviceId, getOpenString(deviceId)));
+		logger.info("Done creating device");
 	}
 
 	private void tearDownDevice() {
@@ -172,9 +185,14 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 			return DeviceID.VERNIER_GO_LINK_JNA;
     	} else if (id.equals("labquest")) {
     		return DeviceID.VERNIER_LAB_QUEST;
-    	} else {
-    		return DeviceID.PSEUDO_DEVICE;
+    	} else if (id.equals("manual")) {
+    		try {
+    			return Integer.parseInt(getParameter("device_id"));
+    		} catch (NumberFormatException e) {
+    			logger.severe("Invalid 'device_id' param: " + getParameter("device_id"));
+    		}
     	}
+    	return DeviceID.PSEUDO_DEVICE;
     }
     
     private String getOpenString(int deviceId) {
@@ -183,7 +201,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		case DeviceID.VERNIER_LAB_QUEST:
 			return null;
 		default:
-			return null;
+			return getParameter("openString");
 		}
     }
     
@@ -201,6 +219,31 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		} else if (type.equals("position") || type.equals("distance")) {
 			experiment.setPeriod(0.1f);
 			configureSensorRequest(sensor, -2, 0.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_DISTANCE);
+		} else if (type.equals("manual")) {
+			try {
+				experiment.setPeriod(Float.parseFloat(getParameter("period")));
+				configureSensorRequest(sensor,
+						Integer.parseInt(getParameter("precision")),
+						Float.parseFloat(getParameter("min")),
+						Float.parseFloat(getParameter("max")),
+						Integer.parseInt(getParameter("sensorPort")),
+						Float.parseFloat(getParameter("stepSize")),
+						Integer.parseInt(getParameter("sensorType"))
+						);
+			} catch (NumberFormatException e) {
+				logger.severe("One or more manual configuration params was incorrect or unspecified!\n" + 
+						"period: " + getParameter("period") + "\n" + 
+						"precision: " + getParameter("precision") + "\n" + 
+						"min: " + getParameter("min") + "\n" + 
+						"max: " + getParameter("max") + "\n" + 
+						"sensorPort: " + getParameter("sensorPort") + "\n" + 
+						"stepSize: " + getParameter("stepSize") + "\n" + 
+						"sensorType: " + getParameter("sensorType")
+						);
+				// fall back to temperature
+				experiment.setPeriod(0.1f);
+				configureSensorRequest(sensor, -1, 0.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_TEMPERATURE);
+			}
 		} else {
 			// fall back to temperature
 			experiment.setPeriod(0.1f);
