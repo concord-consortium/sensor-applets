@@ -34,18 +34,9 @@
   
   <dependencies>
     <dependency>
-      <groupId>org.concord</groupId>
-      <artifactId>otrunk</artifactId>
-    </dependency>
-    <dependency>
-      <artifactId>otrunk-sensor</artifactId>
-      <groupId>org.concord.otrunk</groupId>
-      <version>0.0.1-SNAPSHOT</version>
-    </dependency>
-    <dependency>
-      <groupId>org.concord</groupId>
-      <artifactId>sensor-native</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <artifactId>sensor</artifactId>
+      <groupId>org.concord.sensor</groupId>
+      <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.concord.external</groupId>

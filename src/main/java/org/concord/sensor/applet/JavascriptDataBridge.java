@@ -4,12 +4,9 @@ import java.applet.Applet;
 
 import netscape.javascript.JSException;
 
-import org.concord.framework.data.stream.DataListener;
-import org.concord.framework.data.stream.DataStreamEvent;
-
 import netscape.javascript.JSObject;
 
-public class JavascriptDataBridge implements DataListener {
+public class JavascriptDataBridge {
     private JSObject window;
     private String handlerPath;
     
@@ -18,17 +15,9 @@ public class JavascriptDataBridge implements DataListener {
         handlerPath = javascriptObjectPath;
     }
     
-    public void dataReceived(DataStreamEvent dataEvent) {
-        handleEvent(dataEvent, "dataReceived");
-    }
-    
-    public void dataStreamEvent(DataStreamEvent dataEvent) {
-        handleEvent(dataEvent, "dataStreamEvent");
-    }
-    
     // We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
-    private void handleEvent(DataStreamEvent event, String method) {
-        String evalString = getJsEventCall(event, method);
+    public void handleData(int numSamples, float[] data) {
+        String evalString = getJsEventCall(numSamples, data);
         try {
             window.eval(evalString);
         } catch (JSException e) {
@@ -37,15 +26,13 @@ public class JavascriptDataBridge implements DataListener {
         }
     }
 
-    private String getJsEventCall(DataStreamEvent dataEvent, String method) {
+    private String getJsEventCall(int numSamples, float[] data) {
         StringBuffer buf = new StringBuffer();
         buf.append(handlerPath);
-        buf.append(".");
-        buf.append(method);
-        buf.append("(");
-        buf.append(dataEvent.getType());
-        buf.append(", " + dataEvent.getNumSamples());
-        buf.append(", " + arrayAsString(dataEvent.getData(), dataEvent.getNumSamples()));
+        buf.append(".dataReceived(");
+        buf.append(1000); // 1000 is DataStreamEvent.DATA_RECEIVED
+        buf.append(", " + numSamples);
+        buf.append(", " + arrayAsString(data, numSamples));
         buf.append(");");
         return buf.toString();
     }
