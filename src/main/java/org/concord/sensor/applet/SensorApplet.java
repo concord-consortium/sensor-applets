@@ -24,7 +24,7 @@ import org.concord.sensor.impl.SensorUtilJava;
  *     - if 'manual', you will also need to specify:
  *       deviceId (int): the device id you want to use
  *       openString (String; optional): the open string needed to be passed to the device (some devices don't need this)
- *   probeType: The probe type to use (supports: temperature, light, distance, manual)
+ *   probeType: The probe type to use (supports: temperature, light, distance, co2, force 5n, force 50n, manual)
  *     - if 'manual', you will also need to specify:
  *       period (float): how often to take a sample
  *       precision (int): how many significant digits to report
@@ -222,6 +222,15 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		} else if (type.equals("position") || type.equals("distance")) {
 			experiment.setPeriod(0.1f);
 			configureSensorRequest(sensor, -2, 0.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_DISTANCE);
+		} else if (type.equals("co2")) {
+			experiment.setPeriod(1.0f);
+			configureSensorRequest(sensor, 1, 0.0f, 5000.0f, 0, 20.0f, SensorConfig.QUANTITY_CO2_GAS);
+		} else if (type.equals("force") || type.equals("force 5n")) {
+			experiment.setPeriod(0.01f);
+			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.01f, SensorConfig.QUANTITY_FORCE);
+		} else if (type.equals("force 50n")) {
+			experiment.setPeriod(0.01f);
+			configureSensorRequest(sensor, -1, -40.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
 		} else if (type.equals("manual")) {
 			try {
 				experiment.setPeriod(Float.parseFloat(getParameter("period")));
