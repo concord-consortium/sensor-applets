@@ -128,6 +128,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		// Check what is attached, this isn't necessary if you know what you want
 		// to be attached.  But sometimes you want the user to see what is attached
 		ExperimentConfig currentConfig = device.getCurrentConfig();
+		System.out.println("Current sensor config:");
 		SensorUtilJava.printExperimentConfig(currentConfig);
 
 
@@ -138,6 +139,8 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		request.setSensorRequests(new SensorRequest [] { sensor });
 
 		final ExperimentConfig actualConfig = device.configure(request);
+		System.out.println("Config to be used:");
+		SensorUtilJava.printExperimentConfig(actualConfig);
 
 		deviceIsRunning = device.start();		
 		System.out.println("started device");
