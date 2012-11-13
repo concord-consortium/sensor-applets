@@ -44,6 +44,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 	private SensorDevice device;
 	private JavascriptDataBridge jsBridge;
 	private boolean deviceIsRunning = false;
+	private ExperimentConfig actualConfig;
     
     public enum State {
         READY, RUNNING, STOPPED, UNKNOWN
@@ -125,22 +126,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		if (device == null) {
 			setupDevice();
 		}
-		// Check what is attached, this isn't necessary if you know what you want
-		// to be attached.  But sometimes you want the user to see what is attached
-		ExperimentConfig currentConfig = device.getCurrentConfig();
-		System.out.println("Current sensor config:");
-		SensorUtilJava.printExperimentConfig(currentConfig);
-
-
-		ExperimentRequestImpl request = new ExperimentRequestImpl();
-
-		SensorRequest sensor = getSensorRequest(request);
-
-		request.setSensorRequests(new SensorRequest [] { sensor });
-
-		final ExperimentConfig actualConfig = device.configure(request);
-		System.out.println("Config to be used:");
-		SensorUtilJava.printExperimentConfig(actualConfig);
 
 		deviceIsRunning = device.start();		
 		System.out.println("started device");
@@ -172,6 +157,23 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		logger.info("Creating device");
 		device = deviceFactory.createDevice(new DeviceConfigImpl(deviceId, getOpenString(deviceId)));
 		logger.info("Done creating device");
+		
+		// Check what is attached, this isn't necessary if you know what you want
+		// to be attached.  But sometimes you want the user to see what is attached
+		ExperimentConfig currentConfig = device.getCurrentConfig();
+		System.out.println("Current sensor config:");
+		SensorUtilJava.printExperimentConfig(currentConfig);
+
+
+		ExperimentRequestImpl request = new ExperimentRequestImpl();
+
+		SensorRequest sensor = getSensorRequest(request);
+
+		request.setSensorRequests(new SensorRequest [] { sensor });
+
+		actualConfig = device.configure(request);
+		System.out.println("Config to be used:");
+		SensorUtilJava.printExperimentConfig(actualConfig);
 	}
 
 	private void tearDownDevice() {
