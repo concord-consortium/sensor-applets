@@ -184,7 +184,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     private int getDeviceId() {
     	String id = getParameter("device");
     	logger.info("Got device of: " + id);
-    	if (id.equals("golink")) {
+    	if (id.equals("golink") || id.equals("goio")) {
 			return DeviceID.VERNIER_GO_LINK_JNA;
     	} else if (id.equals("labquest")) {
     		return DeviceID.VERNIER_LAB_QUEST;
