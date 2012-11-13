@@ -3,6 +3,7 @@ package org.concord.sensor.applet;
 import java.awt.EventQueue;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 import javax.swing.JApplet;
@@ -134,9 +135,14 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		Thread t = new Thread() {
 			public void run() {
 				while(deviceIsRunning){
-					int numSamples = device.read(data, 0, 1, null);
+					final int numSamples = device.read(data, 0, 1, null);
 					if(numSamples > 0) {
-						jsBridge.handleData(numSamples, data);
+						final float[] dataCopy = Arrays.copyOfRange(data, 0, numSamples);
+						EventQueue.invokeLater(new Runnable() {
+							public void run() {
+								jsBridge.handleData(numSamples, dataCopy);
+							}
+						});
 					}
 					try {
 						Thread.sleep((long)(actualConfig.getDataReadPeriod()*1000));
