@@ -190,9 +190,9 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     		return DeviceID.VERNIER_LAB_QUEST;
     	} else if (id.equals("manual")) {
     		try {
-    			return Integer.parseInt(getParameter("device_id"));
+    			return Integer.parseInt(getParameter("deviceId"));
     		} catch (NumberFormatException e) {
-    			logger.severe("Invalid 'device_id' param: " + getParameter("device_id"));
+    			logger.severe("Invalid 'deviceId' param: " + getParameter("deviceId"));
     		}
     	}
     	return DeviceID.PSEUDO_DEVICE;
