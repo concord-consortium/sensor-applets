@@ -3,13 +3,9 @@ package org.concord.sensor.applet;
 import java.awt.EventQueue;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Arrays;
 import java.util.logging.Logger;
 
 import javax.swing.JApplet;
-
-import org.concord.sensor.ExperimentConfig;
-import org.concord.sensor.device.SensorDevice;
 
 /**
  * This applet expects the following params:
@@ -34,10 +30,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     private static final Logger logger = Logger.getLogger(SensorApplet.class.getName());
     
     private SensorUtil util;
-	private SensorDevice device;
 	private JavascriptDataBridge jsBridge;
-	private boolean deviceIsRunning = false;
-	private ExperimentConfig actualConfig;
     
     public enum State {
         READY, RUNNING, STOPPED, UNKNOWN
@@ -53,7 +46,9 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     public void destroy() {
     	super.destroy();
     	
-		tearDownDevice();
+		util.tearDownDevice();
+		util.destroy();
+		util = null;
     }
     
     public boolean initSensorInterface(final String listenerPath) {
@@ -78,7 +73,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
-				setupDevice();
+				util.setupDevice();
 
 				jsBridge.sensorsReady();
 			}
@@ -89,7 +84,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
 			public Boolean run() {
 				try {
-					stopDevice();
+					util.stopDevice();
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -98,13 +93,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 			}
 		});
 	}
-
-	private void stopDevice() {
-		if (device != null && deviceIsRunning) {
-			device.stop(true);
-			deviceIsRunning = false;
-		}
-	}
     
     public void startCollecting() {
 		stopCollecting();
@@ -112,7 +100,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
     		public Boolean run() {
     			try {
-    				startDevice();
+    				util.startDevice(jsBridge);
     			} catch (Exception e) {
     				e.printStackTrace();
     			}
@@ -120,51 +108,5 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     		}
     	});
     }
-
-	private void startDevice() {
-		if (device == null) {
-			setupDevice();
-		}
-
-		deviceIsRunning = device.start();		
-		System.out.println("started device");
-
-		final float [] data = new float [1024];
-		Thread t = new Thread() {
-			public void run() {
-				while(deviceIsRunning){
-					final int numSamples = device.read(data, 0, 1, null);
-					if(numSamples > 0) {
-						final float[] dataCopy = Arrays.copyOfRange(data, 0, numSamples);
-						EventQueue.invokeLater(new Runnable() {
-							public void run() {
-								jsBridge.handleData(numSamples, dataCopy);
-							}
-						});
-					}
-					try {
-						Thread.sleep((long)(actualConfig.getDataReadPeriod()*1000));
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		};
-		t.start();
-	}
-
-	private void setupDevice() {
-		tearDownDevice();
-
-		device = util.getDevice();
-		actualConfig = util.configureDevice(device);
-	}
-
-	private void tearDownDevice() {
-		if(device != null){
-			device.close();
-			device = null;
-		}
-	}
 
 }
