@@ -174,7 +174,11 @@ public class SensorUtil {
 				// to be attached.  But sometimes you want the user to see what is attached
 				ExperimentConfig currentConfig = device.getCurrentConfig();
 				System.out.println("Current sensor config:");
-				SensorUtilJava.printExperimentConfig(currentConfig);
+				if (currentConfig == null) {
+					System.out.println("  IS NULL");
+				} else {
+					SensorUtilJava.printExperimentConfig(currentConfig);
+				} 
 
 
 				ExperimentRequestImpl request = new ExperimentRequestImpl();
@@ -185,7 +189,11 @@ public class SensorUtil {
 
 				actualConfig = device.configure(request);
 				System.out.println("Config to be used:");
-				SensorUtilJava.printExperimentConfig(actualConfig);
+				if (actualConfig == null) {
+					System.out.println("IS ALSO NULL <-- BAD!");
+				} else {
+					SensorUtilJava.printExperimentConfig(actualConfig);
+				}
 			}
 
 		};
