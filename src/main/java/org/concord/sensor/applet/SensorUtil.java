@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.concord.sensor.ExperimentConfig;
@@ -83,14 +84,18 @@ public class SensorUtil {
 		final float [] data = new float [1024];
 		Runnable r = new Runnable() {
 			public void run() {
-				final int numSamples = device.read(data, 0, 1, null);
-				if(numSamples > 0) {
-					final float[] dataCopy = Arrays.copyOfRange(data, 0, numSamples);
-					EventQueue.invokeLater(new Runnable() {
-						public void run() {
-							jsBridge.handleData(numSamples, dataCopy);
-						}
-					});
+				try {
+					final int numSamples = device.read(data, 0, 1, null);
+					if(numSamples > 0) {
+						final float[] dataCopy = Arrays.copyOfRange(data, 0, numSamples);
+						executor.schedule(new Runnable() {
+							public void run() {
+								jsBridge.handleData(numSamples, dataCopy);
+							}
+						}, 0, TimeUnit.MILLISECONDS);
+					}
+				} catch (Exception e) {
+					logger.log(Level.SEVERE, "Error reading data from device!", e);
 				}
 			}
 		};
