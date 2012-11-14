@@ -42,7 +42,9 @@ public class SensorUtil {
 
 	public void stopDevice() {
 		if (device != null && deviceIsRunning) {
-			collectionTask.cancel(false);
+			if (!collectionTask.isDone()) {
+				collectionTask.cancel(false);
+			}
 			collectionTask = null;
 			Runnable r = new Runnable() {
 				public void run() {
