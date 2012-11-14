@@ -69,6 +69,8 @@ public class SensorUtil {
 		if (device == null) {
 			setupDevice();
 		}
+		
+		configureDevice();
 
 		Runnable start = new Runnable() {
 			public void run() {
