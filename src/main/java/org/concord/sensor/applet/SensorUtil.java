@@ -92,8 +92,8 @@ public class SensorUtil {
 
 		Runnable start = new Runnable() {
 			public void run() {
-				deviceIsRunning = device.start();		
-				System.out.println("started device");
+				deviceIsRunning = device.start();
+				System.out.println("started device: " + deviceIsRunning);
 			}
 		};
 		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
@@ -220,6 +220,7 @@ public class SensorUtil {
 				logger.info("Closing device: " + Thread.currentThread().getName());
 				if(device != null){
 					device.close();
+					logger.info("Closed device");
 					device = null;
 					logger.info("Device shut down");
 				}
