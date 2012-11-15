@@ -55,7 +55,12 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
     		public Boolean run() {
     			try {
-    				setupInterface(listenerPath);
+    				// Create the data bridge
+    				jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
+
+    				util.setupDevice();
+
+    				jsBridge.sensorsReady();
     			} catch (Exception e) {
     				e.printStackTrace();
     			}
@@ -65,19 +70,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	});
         
 		return true;
-	}
-
-	private void setupInterface(final String listenerPath) {
-		// Create the data bridge
-		jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
-
-		EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				util.setupDevice();
-
-				jsBridge.sensorsReady();
-			}
-		});
 	}
 
 	public void stopCollecting() {
