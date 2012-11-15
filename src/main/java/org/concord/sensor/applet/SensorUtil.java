@@ -85,6 +85,7 @@ public class SensorUtil {
 
 		final float [] data = new float [1024];
 		Runnable r = new Runnable() {
+			private int numErrors = 0;
 			public void run() {
 				try {
 					final int numSamples = device.read(data, 0, 1, null);
@@ -96,8 +97,15 @@ public class SensorUtil {
 							}
 						}, 0, TimeUnit.MILLISECONDS);
 					}
+					numErrors = 0;
 				} catch (Exception e) {
+					numErrors++;
 					logger.log(Level.SEVERE, "Error reading data from device!", e);
+				}
+				if (numErrors >= 5) {
+					numErrors = 0;
+					logger.severe("Too many collection errors! Stopping device.");
+					stopDevice();
 				}
 			}
 		};
