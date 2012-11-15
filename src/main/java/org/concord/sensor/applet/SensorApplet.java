@@ -1,6 +1,5 @@
 package org.concord.sensor.applet;
 
-import java.awt.EventQueue;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.logging.Logger;
@@ -27,6 +26,8 @@ import javax.swing.JApplet;
  */
 public class SensorApplet extends JApplet implements SensorAppletAPI {
     private static final long serialVersionUID = 1L;
+    
+    @SuppressWarnings("unused")
     private static final Logger logger = Logger.getLogger(SensorApplet.class.getName());
     
     private SensorUtil util;
