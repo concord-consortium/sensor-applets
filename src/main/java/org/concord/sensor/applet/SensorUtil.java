@@ -121,6 +121,7 @@ public class SensorUtil {
 	}
 
 	public void tearDownDevice() {
+		stopDevice();
 		Runnable r = new Runnable() {
 			public void run() {
 				if(device != null){
@@ -143,6 +144,7 @@ public class SensorUtil {
 	}
 	
 	public void destroy() {
+		tearDownDevice();
 		executor.shutdown();
 		try {
 			executor.awaitTermination(5, TimeUnit.SECONDS);
