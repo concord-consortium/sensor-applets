@@ -6,6 +6,9 @@ import java.util.logging.Logger;
 
 import javax.swing.JApplet;
 
+import org.concord.sensor.SensorRequest;
+import org.concord.sensor.impl.SensorRequestImpl;
+
 /**
  * This applet expects the following params:
  *   device: the device name to use (supports: golink, labquest, pseudo, manual)
@@ -52,14 +55,15 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		util = null;
     }
     
-    public boolean initSensorInterface(final String listenerPath) {
+    public boolean initSensorInterface(final String listenerPath, final String deviceType, final SensorRequest[] sensors) {
     	AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
     		public Boolean run() {
     			try {
     				// Create the data bridge
+    				logger.info("Setting things up: " + listenerPath + ", " + deviceType + ", " + sensors);
     				jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
 
-    				util.setupDevice();
+    				util.setupDevice(deviceType, sensors);
 
     				jsBridge.sensorsReady();
     			} catch (Exception e) {
@@ -100,6 +104,10 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     			return Boolean.TRUE;
     		}
     	});
+    }
+    
+    public SensorRequestImpl getSensorRequest(String sensorType) {
+    	return SensorUtil.getSensorRequest(sensorType);
     }
 
 }

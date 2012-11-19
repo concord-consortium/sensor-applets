@@ -31,6 +31,10 @@ public class SensorUtil {
 	private ScheduledExecutorService executor;
 	private ScheduledFuture<?> collectionTask;
 
+	private String deviceType;
+
+	private SensorRequest[] sensors;
+
 	public SensorUtil(Applet applet) {
 		this.applet = applet;
 		this.deviceFactory = new JavaDeviceFactory();
@@ -68,10 +72,10 @@ public class SensorUtil {
 		if (deviceIsRunning) { return; }
 
 		if (device == null) {
-			setupDevice();
+			setupDevice(deviceType, sensors);
 		}
 		
-		configureDevice();
+		configureDevice(sensors);
 
 		Runnable start = new Runnable() {
 			public void run() {
@@ -112,11 +116,14 @@ public class SensorUtil {
 		collectionTask = executor.scheduleAtFixedRate(r, 10, (long)interval, TimeUnit.MILLISECONDS);
 	}
 
-	public void setupDevice() {
+	public void setupDevice(String deviceType, SensorRequest[] sensors) {
+		this.deviceType = deviceType;
+		this.sensors = sensors;
+		
 		tearDownDevice();
 
-		createDevice();
-		configureDevice();
+		createDevice(deviceType);
+		configureDevice(sensors);
 	}
 
 	public void tearDownDevice() {
@@ -156,10 +163,10 @@ public class SensorUtil {
 		deviceFactory = null;
 	}
 
-	private void createDevice() {
+	private void createDevice(final String deviceType) {
 		Runnable r = new Runnable() {
 			public void run() {
-				int deviceId = getDeviceId();
+				int deviceId = getDeviceId(deviceType);
 				device = deviceFactory.createDevice(new DeviceConfigImpl(deviceId, getOpenString(deviceId)));
 			}
 		};
@@ -176,7 +183,7 @@ public class SensorUtil {
 		}
 	}
 
-	private void configureDevice() {
+	private void configureDevice(final SensorRequest[] sensors) {
 		Runnable r = new Runnable() {
 			public void run() {
 				// Check what is attached, this isn't necessary if you know what you want
@@ -191,10 +198,9 @@ public class SensorUtil {
 
 
 				ExperimentRequestImpl request = new ExperimentRequestImpl();
+				configureExperimentRequest(request, sensors);
 
-				SensorRequest sensor = getSensorRequest(request);
-
-				request.setSensorRequests(new SensorRequest [] { sensor });
+				request.setSensorRequests(sensors);
 
 				actualConfig = device.configure(request);
 				System.out.println("Config to be used:");
@@ -202,6 +208,32 @@ public class SensorUtil {
 					System.out.println("IS ALSO NULL <-- BAD!");
 				} else {
 					SensorUtilJava.printExperimentConfig(actualConfig);
+				}
+			}
+
+			private void configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
+				float minPeriod = Float.MAX_VALUE;
+				for (SensorRequest sensor : sensors) {
+					float period = getPeriod(sensor);
+					if (period < minPeriod) {
+						minPeriod = period;
+					}
+				}
+				experiment.setPeriod(minPeriod);
+				experiment.setNumberOfSamples(-1);
+			}
+			
+			private float getPeriod(SensorRequest sensor) {
+				switch (sensor.getType()) {
+				case SensorConfig.QUANTITY_CO2_GAS:
+					return 1.0f;
+				case SensorConfig.QUANTITY_FORCE:
+					return 0.01f;
+				case SensorConfig.QUANTITY_TEMPERATURE:
+				case SensorConfig.QUANTITY_DISTANCE:
+				case SensorConfig.QUANTITY_LIGHT:
+				default:
+					return 0.1f;
 				}
 			}
 
@@ -220,9 +252,8 @@ public class SensorUtil {
 	}
 
 
-	private int getDeviceId() {
-		String id = applet.getParameter("device");
-		logger.info("Got device of: " + id);
+	private int getDeviceId(String id) {
+		logger.info("Requested device of: " + id);
 		if (id.equals("golink") || id.equals("goio")) {
 			return DeviceID.VERNIER_GO_LINK_JNA;
 		} else if (id.equals("labquest")) {
@@ -247,65 +278,30 @@ public class SensorUtil {
 		}
 	}
 
-	private SensorRequest getSensorRequest(ExperimentRequestImpl experiment) {
-		String type = applet.getParameter("probeType");
-		logger.info("Got probeType of: " + type);
-		if (type == null) { type = "temperature"; }
-		type = type.toLowerCase();
-
+	public static SensorRequestImpl getSensorRequest(String type) {
 		SensorRequestImpl sensor = new SensorRequestImpl();
 
 		if (type.equals("light")) {
-			experiment.setPeriod(0.1f);
 			configureSensorRequest(sensor, 0, 0.0f, 4000.0f, 0, 0.1f, SensorConfig.QUANTITY_LIGHT);
 		} else if (type.equals("position") || type.equals("distance")) {
-			experiment.setPeriod(0.1f);
 			configureSensorRequest(sensor, -2, 0.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_DISTANCE);
 		} else if (type.equals("co2")) {
-			experiment.setPeriod(1.0f);
 			configureSensorRequest(sensor, 1, 0.0f, 5000.0f, 0, 20.0f, SensorConfig.QUANTITY_CO2_GAS);
 		} else if (type.equals("force") || type.equals("force 5n")) {
-			experiment.setPeriod(0.01f);
 			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.01f, SensorConfig.QUANTITY_FORCE);
 		} else if (type.equals("force 50n")) {
-			experiment.setPeriod(0.01f);
 			configureSensorRequest(sensor, -1, -40.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
 		} else if (type.equals("manual")) {
-			try {
-				experiment.setPeriod(Float.parseFloat(applet.getParameter("period")));
-				configureSensorRequest(sensor,
-						Integer.parseInt(applet.getParameter("precision")),
-						Float.parseFloat(applet.getParameter("min")),
-						Float.parseFloat(applet.getParameter("max")),
-						Integer.parseInt(applet.getParameter("sensorPort")),
-						Float.parseFloat(applet.getParameter("stepSize")),
-						Integer.parseInt(applet.getParameter("sensorType"))
-						);
-			} catch (NumberFormatException e) {
-				logger.severe("One or more manual configuration params was incorrect or unspecified!\n" + 
-						"period: " + applet.getParameter("period") + "\n" + 
-						"precision: " + applet.getParameter("precision") + "\n" + 
-						"min: " + applet.getParameter("min") + "\n" + 
-						"max: " + applet.getParameter("max") + "\n" + 
-						"sensorPort: " + applet.getParameter("sensorPort") + "\n" + 
-						"stepSize: " + applet.getParameter("stepSize") + "\n" + 
-						"sensorType: " + applet.getParameter("sensorType")
-						);
-				// fall back to temperature
-				experiment.setPeriod(0.1f);
-				configureSensorRequest(sensor, -1, 0.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_TEMPERATURE);
-			}
+			// return an unconfigured sensor request
 		} else {
 			// fall back to temperature
-			experiment.setPeriod(0.1f);
 			configureSensorRequest(sensor, -1, 0.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_TEMPERATURE);
 		}
-		experiment.setNumberOfSamples(-1);
 
 		return sensor;
 	}
 
-	private void configureSensorRequest(SensorRequestImpl sensor, int precision, float min, float max, int port, float step, int type) {
+	private static void configureSensorRequest(SensorRequestImpl sensor, int precision, float min, float max, int port, float step, int type) {
 		sensor.setDisplayPrecision(precision);
 		sensor.setRequiredMin(min);
 		sensor.setRequiredMax(max);
