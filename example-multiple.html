@@ -1,19 +1,16 @@
 <html>
   <head>
-    <title>Sensor Applet Test</title>
+    <title>Sensor Applet (Multiple) Test</title>
     <script type="text/javascript">
         var list;
         var sensor;
         var jsListener = {
         	dataReceived: function(type,count,data) {
-                list.innerHTML += "<li>" + type + ", " + count + ", " + data + "</li>";
-		    },
-		    dataStreamEvent: function(type,count,data) {
-			    list.innerHTML += "<li>" + type + ", " + count + ", " + data + "</li>";
+                list.innerHTML += "<li>" + count + ", [" + data + "]</li>";
 		    },
 		    sensorsReady: function() {
-        	    document.getElementById('controls').innerHTML = "<a href='javascript:startSensor();'>Start</a>"
-        	                           + "<a href='javascript:stopSensor();'>Stop</a>"
+        	    document.getElementById('controls').innerHTML = "<a href='javascript:startSensor();'>Start</a> "
+        	                           + "<a href='javascript:stopSensor();'>Stop</a> "
         	                           + "<a href='javascript:clearData();'>Clear</a>";
 		    }
 	    };
@@ -36,21 +33,18 @@
     </script>
   </head>
   <body>
-    <h1>Sensor Applet test</h1>
-    <p>This is a simple demo of the invisible sensor applet. It is set up to use a GoIO device with an attached temperature sensor.</p>
+    <h1>Sensor Applet (Multiple) test</h1>
+    <p>This is a simple demo of the invisible sensor applet collecting from multiple sensors. It is set up to use a LabQuest device with an attached temperature sensor and Force (50N) sensor.</p>
     <p>
       <applet id="sensor" code="org.concord.sensor.applet.SensorApplet" width="1" height="1"
         codebase="http://jars.dev.concord.org/dev3"
         archive="
 net/java/dev/jna/jna/jna-3.5.1.jar,
 org/concord/sensor/sensor/sensor-1.0-20121114.175203-22.jar,
-org/concord/sensor/goio-jna/goio-jna-1.0-20121114.175203-24.jar,
 org/concord/sensor/sensor-vernier/sensor-vernier-1.0-20121114.175203-23.jar,
 org/concord/sensor/sensor-applets/sensor-applets-1.0-20121119.212514-6.jar,
 org/concord/sensor/labquest-jna/labquest-jna-1.0-20121114.175203-23.jar
 " MAYSCRIPT="true">
-  <param name="device" value="golink" />
-  <param name="probeType" value="temperature"/>
   <param name="MAYSCRIPT" value="true"/>
         Your browser is completely ignoring the applet tag!
       </applet>
@@ -69,10 +63,12 @@ org/concord/sensor/labquest-jna/labquest-jna-1.0-20121114.175203-23.jar
         var isReady = function() {
         	try {
         	    if (sensor && sensor.getSensorRequest('manual')) {
-        	        var req = sensor.getSensorRequest('temperature');
-        	        sensor.initSensorInterface('jsListener', 'golink', [req])
         	        console.log("init complete");
         	        window.clearInterval(timerId);
+        	        
+        	        var req1 = sensor.getSensorRequest('temperature');
+        	        var req2 = sensor.getSensorRequest('force 50n');
+        	        sensor.initSensorInterface('jsListener', 'labquest', [req1, req2])
         	    }
         	} catch (e) {
         	  // not ready yet... try again later
