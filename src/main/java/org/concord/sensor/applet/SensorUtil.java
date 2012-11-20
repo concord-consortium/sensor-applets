@@ -280,18 +280,23 @@ public class SensorUtil {
 	}
 
 	public static SensorRequestImpl getSensorRequest(String type) {
+		type = type.toLowerCase();
 		SensorRequestImpl sensor = new SensorRequestImpl();
 
 		if (type.equals("light")) {
 			configureSensorRequest(sensor, 0, 0.0f, 4000.0f, 0, 0.1f, SensorConfig.QUANTITY_LIGHT);
 		} else if (type.equals("position") || type.equals("distance")) {
 			configureSensorRequest(sensor, -2, 0.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_DISTANCE);
-		} else if (type.equals("co2")) {
+		} else if (type.equals("co2") || type.equals("carbon dioxide")) {
 			configureSensorRequest(sensor, 1, 0.0f, 5000.0f, 0, 20.0f, SensorConfig.QUANTITY_CO2_GAS);
 		} else if (type.equals("force") || type.equals("force 5n")) {
 			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.01f, SensorConfig.QUANTITY_FORCE);
 		} else if (type.equals("force 50n")) {
 			configureSensorRequest(sensor, -1, -40.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
+		} else if (type.equals("o2") || type.equals("oxygen")) {
+			configureSensorRequest(sensor, -2, 0.0f, 100.0f, 0, 0.01f, SensorConfig.QUANTITY_OXYGEN_GAS);
+		} else if (type.equals("ph")) {
+			configureSensorRequest(sensor, -1, 0.0f, 14.0f, 0, 0.1f, SensorConfig.QUANTITY_PH);
 		} else if (type.equals("manual")) {
 			// return an unconfigured sensor request
 		} else {
