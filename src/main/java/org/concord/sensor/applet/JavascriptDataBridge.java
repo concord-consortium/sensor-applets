@@ -16,8 +16,8 @@ public class JavascriptDataBridge {
     }
     
     // We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
-    public void handleData(int numSamples, float[] data) {
-        String evalString = getJsEventCall(numSamples, data);
+    public void handleData(int numSamples, int numSensors, float[] data) {
+        String evalString = getJsEventCall(numSamples, numSensors, data);
         try {
             window.eval(evalString);
         } catch (JSException e) {
@@ -26,26 +26,27 @@ public class JavascriptDataBridge {
         }
     }
 
-    private String getJsEventCall(int numSamples, float[] data) {
+    private String getJsEventCall(int numSamples, int numSensors, float[] data) {
         StringBuffer buf = new StringBuffer();
         buf.append(handlerPath);
         buf.append(".dataReceived(");
         buf.append(1000); // 1000 is DataStreamEvent.DATA_RECEIVED
         buf.append(", " + numSamples);
-        buf.append(", " + arrayAsString(data, numSamples));
+        buf.append(", " + arrayAsString(data, numSamples, numSensors));
         buf.append(");");
         return buf.toString();
     }
     
-    private String arrayAsString(float[] arr, int numSamples) {
+    private String arrayAsString(float[] arr, int numSamples, int numSensors) {
         if (arr == null) {
             return "null";
         }
         StringBuffer buf = new StringBuffer();
         buf.append("[");
-        for (int i = 0; i < numSamples; i++) {
+        int last = numSamples * numSensors;
+        for (int i = 0; i < last; i++) {
             buf.append(arr[i]);
-            if (i != numSamples-1) {
+            if (i != last-1) {
                 buf.append(",");
             }
         }

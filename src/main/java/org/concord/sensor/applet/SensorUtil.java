@@ -90,13 +90,13 @@ public class SensorUtil {
 			private int numErrors = 0;
 			public void run() {
 				try {
-					final int numSamples = device.read(data, 0, 1, null);
+					final int numSamples = device.read(data, 0, sensors.length, null);
 					if(numSamples > 0) {
-						final float[] dataCopy = new float[numSamples];
-						System.arraycopy(data, 0, dataCopy, 0, numSamples);
+						final float[] dataCopy = new float[numSamples*sensors.length];
+						System.arraycopy(data, 0, dataCopy, 0, numSamples*sensors.length);
 						executor.schedule(new Runnable() {
 							public void run() {
-								jsBridge.handleData(numSamples, dataCopy);
+								jsBridge.handleData(numSamples, sensors.length, dataCopy);
 							}
 						}, 0, TimeUnit.MILLISECONDS);
 					}
