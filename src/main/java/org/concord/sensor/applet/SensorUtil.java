@@ -211,32 +211,6 @@ public class SensorUtil {
 				}
 			}
 
-			private void configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
-				float minPeriod = Float.MAX_VALUE;
-				for (SensorRequest sensor : sensors) {
-					float period = getPeriod(sensor);
-					if (period < minPeriod) {
-						minPeriod = period;
-					}
-				}
-				experiment.setPeriod(minPeriod);
-				experiment.setNumberOfSamples(-1);
-			}
-			
-			private float getPeriod(SensorRequest sensor) {
-				switch (sensor.getType()) {
-				case SensorConfig.QUANTITY_CO2_GAS:
-					return 1.0f;
-				case SensorConfig.QUANTITY_FORCE:
-					return 0.01f;
-				case SensorConfig.QUANTITY_TEMPERATURE:
-				case SensorConfig.QUANTITY_DISTANCE:
-				case SensorConfig.QUANTITY_LIGHT:
-				default:
-					return 0.1f;
-				}
-			}
-
 		};
 
 		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
@@ -251,6 +225,33 @@ public class SensorUtil {
 		}
 	}
 
+	private void configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
+		float minPeriod = Float.MAX_VALUE;
+		for (SensorRequest sensor : sensors) {
+			float period = getPeriod(sensor);
+			if (period < minPeriod) {
+				minPeriod = period;
+			}
+		}
+		experiment.setPeriod(minPeriod);
+		experiment.setNumberOfSamples(-1);
+	}
+	
+	private float getPeriod(SensorRequest sensor) {
+		switch (sensor.getType()) {
+		case SensorConfig.QUANTITY_CO2_GAS:
+		case SensorConfig.QUANTITY_OXYGEN_GAS:
+			return 1.0f;
+		case SensorConfig.QUANTITY_FORCE:
+			return 0.01f;
+		case SensorConfig.QUANTITY_TEMPERATURE:
+		case SensorConfig.QUANTITY_DISTANCE:
+		case SensorConfig.QUANTITY_LIGHT:
+		case SensorConfig.QUANTITY_PH:
+		default:
+			return 0.1f;
+		}
+	}
 
 	private int getDeviceId(String id) {
 		logger.info("Requested device of: " + id);
