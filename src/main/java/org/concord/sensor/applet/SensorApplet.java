@@ -2,11 +2,14 @@ package org.concord.sensor.applet;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.swing.JApplet;
 
 import org.concord.sensor.SensorRequest;
+import org.concord.sensor.applet.exception.SensorAppletException;
 import org.concord.sensor.impl.SensorRequestImpl;
 
 /**
@@ -30,60 +33,85 @@ import org.concord.sensor.impl.SensorRequestImpl;
 public class SensorApplet extends JApplet implements SensorAppletAPI {
     private static final long serialVersionUID = 1L;
     
-    @SuppressWarnings("unused")
     private static final Logger logger = Logger.getLogger(SensorApplet.class.getName());
     
-    private SensorUtil util;
 	private JavascriptDataBridge jsBridge;
+
+	private HashMap<String, SensorUtil> sensorUtils = new HashMap<String, SensorUtil>();
     
     public enum State {
         READY, RUNNING, STOPPED, UNKNOWN
     }
     
     @Override
-    public void init() {
-    	super.init();
-    	util = new SensorUtil(this);
+    public void destroy() {
+    	for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
+    		SensorUtil util = entry.getValue();
+		    util.destroy();
+    	}
+    	sensorUtils.clear();
+    	super.destroy();
     }
     
-    @Override
-    public void destroy() {
-    	super.destroy();
-    	
-		util.tearDownDevice();
-		util.destroy();
-		util = null;
+    private SensorUtil findOrCreateUtil(String deviceType) {
+    	SensorUtil util = sensorUtils.get(deviceType);
+		if (util == null) {
+			logger.info("Creating new util...");
+			util = new SensorUtil(this, deviceType);
+			sensorUtils.put(deviceType, util);
+		}
+		return util;
     }
     
     public boolean initSensorInterface(final String listenerPath, final String deviceType, final SensorRequest[] sensors) {
-    	AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+    	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
     		public Boolean run() {
     			try {
     				// Create the data bridge
     				logger.info("Setting things up: " + listenerPath + ", " + deviceType + ", " + sensors);
     				jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
 
-    				util.setupDevice(deviceType, sensors);
+    				
+    				findOrCreateUtil(deviceType).setupDevice(sensors);
 
     				jsBridge.sensorsReady();
-    			} catch (Exception e) {
+    			} catch (SensorAppletException e) {
     				e.printStackTrace();
+    				return Boolean.FALSE;
     			}
     			
     			return Boolean.TRUE;
     		}
     	});
         
-		return true;
+		return b.booleanValue();
 	}
+    
+    public boolean isInterfaceConnected(final String deviceType) {
+    	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+    		public Boolean run() {
+				SensorUtil util = findOrCreateUtil(deviceType);
+				if (util.isCollectable()) {
+					return Boolean.TRUE;
+				}
+    			return Boolean.FALSE;
+    		}
+		});
+    	return b.booleanValue();
+    }
 
 	public void stopCollecting() {
 		AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
 			public Boolean run() {
-				try {
-					util.stopDevice();
-				} catch (Exception e) {
-					e.printStackTrace();
+				for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
+					try {
+						SensorUtil util = entry.getValue();
+						if (util.isRunning()) {
+							util.stopDevice();
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 
 				return Boolean.TRUE;
@@ -94,16 +122,21 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     public void startCollecting() {
 		stopCollecting();
 		
-    	AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-    		public Boolean run() {
-    			try {
-    				util.startDevice(jsBridge);
-    			} catch (Exception e) {
-    				e.printStackTrace();
-    			}
-    			return Boolean.TRUE;
-    		}
-    	});
+		AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+			public Boolean run() {
+				for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
+					SensorUtil util = entry.getValue();
+					if (util.isCollectable()) {
+						try {
+							util.startDevice(jsBridge);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				}
+				return Boolean.TRUE;
+			}
+		});
     }
     
     public SensorRequestImpl getSensorRequest(String sensorType) {

@@ -12,6 +12,9 @@ import java.util.logging.Logger;
 import org.concord.sensor.ExperimentConfig;
 import org.concord.sensor.SensorConfig;
 import org.concord.sensor.SensorRequest;
+import org.concord.sensor.applet.exception.ConfigureDeviceException;
+import org.concord.sensor.applet.exception.CreateDeviceException;
+import org.concord.sensor.applet.exception.SensorAppletException;
 import org.concord.sensor.device.SensorDevice;
 import org.concord.sensor.device.impl.DeviceConfigImpl;
 import org.concord.sensor.device.impl.DeviceID;
@@ -28,6 +31,8 @@ public class SensorUtil {
 	private SensorDevice device;
 	private ExperimentConfig actualConfig;
 	private boolean deviceIsRunning = false;
+	private boolean deviceIsAttached = false;
+	private boolean deviceIsCollectable = false;
 	private ScheduledExecutorService executor;
 	private ScheduledFuture<?> collectionTask;
 
@@ -35,13 +40,17 @@ public class SensorUtil {
 
 	private SensorRequest[] sensors;
 
-	public SensorUtil(Applet applet) {
+	public SensorUtil(Applet applet, String deviceType) {
 		this.applet = applet;
+		this.deviceType = deviceType;
 		this.deviceFactory = new JavaDeviceFactory();
 		this.executor = Executors.newSingleThreadScheduledExecutor();
 	}
 
-
+    public boolean isRunning() {
+    	return deviceIsRunning;
+    }
+	
 	public void stopDevice() {
 		if (device != null && deviceIsRunning) {
 			if (!collectionTask.isDone()) {
@@ -50,6 +59,7 @@ public class SensorUtil {
 			collectionTask = null;
 			Runnable r = new Runnable() {
 				public void run() {
+					logger.info("Stopping device: " + Thread.currentThread().getName());
 					device.stop(true);
 					deviceIsRunning = false;
 				}
@@ -68,11 +78,11 @@ public class SensorUtil {
 		}
 	}
 
-	public void startDevice(final JavascriptDataBridge jsBridge) {
+	public void startDevice(final JavascriptDataBridge jsBridge) throws CreateDeviceException, ConfigureDeviceException {
 		if (deviceIsRunning) { return; }
 
 		if (device == null) {
-			setupDevice(deviceType, sensors);
+			setupDevice(sensors);
 		}
 		
 		configureDevice(sensors);
@@ -116,23 +126,100 @@ public class SensorUtil {
 		collectionTask = executor.scheduleAtFixedRate(r, 10, (long)interval, TimeUnit.MILLISECONDS);
 	}
 
-	public void setupDevice(String deviceType, SensorRequest[] sensors) {
-		this.deviceType = deviceType;
+	public void setupDevice(SensorRequest[] sensors) throws CreateDeviceException, ConfigureDeviceException {
 		this.sensors = sensors;
 		
-		tearDownDevice();
+		if (device == null) {
+		  createDevice();
+		}
+		
+		if (sensors.length > 0) {
+		    configureDevice(sensors);
+		}
+	}
+	
+	private ExperimentConfig reportedConfig;
+	public ExperimentConfig getDeviceConfig() throws ConfigureDeviceException {
+		reportedConfig = null;
+		if (device != null) {
+			Runnable r = new Runnable() {
+				public void run() {
+					logger.info("Getting device config: " + Thread.currentThread().getName());
+					// Check what is attached, this isn't necessary if you know what you want
+					// to be attached.  But sometimes you want the user to see what is attached
+					reportedConfig = device.getCurrentConfig();
+				}
+			};
 
-		createDevice(deviceType);
-		configureDevice(sensors);
+			ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
+			try {
+				task.get();
+			} catch (InterruptedException e) {
+				throw new ConfigureDeviceException("Exception configuring device", e);
+			} catch (ExecutionException e) {
+				throw new ConfigureDeviceException("Exception configuring device", e.getCause());
+			}
+		}
+		return reportedConfig;
+	}
+	
+	public boolean isDeviceAttached() {
+		if (device != null) {
+			Runnable r = new Runnable() {
+				public void run() {
+					logger.info("Checking attached: " + Thread.currentThread().getName());
+					// TODO Auto-generated method stub
+					deviceIsAttached = device.isAttached();
+				}
+			};
+
+			ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
+			try {
+				task.get();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return deviceIsAttached;
+	}
+	
+	public boolean isCollectable() {
+		logger.info("Checking for sensor interface: " + deviceType);
+		if (sensors != null && sensors.length > 0 && deviceIsCollectable) {
+			return deviceIsCollectable;
+		}
+		try {
+			if (sensors == null || sensors.length == 0) {
+			    setupDevice(new SensorRequest[] {});
+			}
+			if (isDeviceAttached()) {
+				logger.info("Device reported as attached.");
+				ExperimentConfig config = getDeviceConfig();
+				if (config != null) {
+					logger.info("Interface is connected. Here's the config: ");
+					SensorUtilJava.printExperimentConfig(config);
+					deviceIsCollectable = true;
+					return deviceIsCollectable;
+				}
+			} else {
+				logger.info("device says not attached");
+			}
+		} catch (SensorAppletException e) {
+			//
+		}
+		deviceIsCollectable = false;
+		return deviceIsCollectable;
 	}
 
 	public void tearDownDevice() {
 		stopDevice();
 		Runnable r = new Runnable() {
 			public void run() {
+				logger.info("Closing device: " + Thread.currentThread().getName());
 				if(device != null){
 					device.close();
 					device = null;
+					logger.info("Device shut down");
 				}
 			}
 		};
@@ -163,9 +250,10 @@ public class SensorUtil {
 		deviceFactory = null;
 	}
 
-	private void createDevice(final String deviceType) {
+	private void createDevice() throws CreateDeviceException {
 		Runnable r = new Runnable() {
 			public void run() {
+				logger.info("Creating device: " + Thread.currentThread().getName());
 				int deviceId = getDeviceId(deviceType);
 				device = deviceFactory.createDevice(new DeviceConfigImpl(deviceId, getOpenString(deviceId)));
 			}
@@ -175,26 +263,25 @@ public class SensorUtil {
 		try {
 			task.get();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new CreateDeviceException("Exception creating device", e);
 		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new CreateDeviceException("Exception creating device", e.getCause());
 		}
 	}
 
-	private void configureDevice(final SensorRequest[] sensors) {
+	private void configureDevice(final SensorRequest[] sensors) throws ConfigureDeviceException {
 		Runnable r = new Runnable() {
 			public void run() {
+				logger.info("Configuring device: " + Thread.currentThread().getName());
 				// Check what is attached, this isn't necessary if you know what you want
 				// to be attached.  But sometimes you want the user to see what is attached
-				ExperimentConfig currentConfig = device.getCurrentConfig();
-				System.out.println("Current sensor config:");
-				if (currentConfig == null) {
-					System.out.println("  IS NULL");
-				} else {
-					SensorUtilJava.printExperimentConfig(currentConfig);
-				} 
+//				ExperimentConfig currentConfig = device.getCurrentConfig();
+//				System.out.println("Current sensor config:");
+//				if (currentConfig == null) {
+//					System.out.println("  IS NULL");
+//				} else {
+//					SensorUtilJava.printExperimentConfig(currentConfig);
+//				} 
 
 
 				ExperimentRequestImpl request = new ExperimentRequestImpl();
@@ -217,11 +304,9 @@ public class SensorUtil {
 		try {
 			task.get();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new ConfigureDeviceException("Exception configuring device", e);
 		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new ConfigureDeviceException("Exception configuring device", e.getCause());
 		}
 	}
 

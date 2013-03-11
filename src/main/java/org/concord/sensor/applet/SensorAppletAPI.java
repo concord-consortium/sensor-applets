@@ -9,5 +9,7 @@ public interface SensorAppletAPI {
 	public abstract void startCollecting();
 
 	public abstract void stopCollecting();
+	
+	public abstract boolean isInterfaceConnected(String deviceType);
 
 }
