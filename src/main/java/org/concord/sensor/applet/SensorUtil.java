@@ -52,17 +52,16 @@ public class SensorUtil {
     }
 	
 	public void stopDevice() {
-		if (collectionTask != null && !collectionTask.isDone()) {
-			collectionTask.cancel(false);
-		}
-		collectionTask = null;
-		
 		if (device != null && deviceIsRunning) {
+			if (!collectionTask.isDone()) {
+				collectionTask.cancel(false);
+			}
+			collectionTask = null;
 			Runnable r = new Runnable() {
 				public void run() {
 					logger.info("Stopping device: " + Thread.currentThread().getName());
 					device.stop(true);
-					System.out.println("stopped device");
+					deviceIsRunning = false;
 				}
 			};
 
@@ -77,8 +76,6 @@ public class SensorUtil {
 				e.printStackTrace();
 			}
 		}
-
-		deviceIsRunning = false;
 	}
 
 	public void startDevice(final JavascriptDataBridge jsBridge) throws CreateDeviceException, ConfigureDeviceException {
@@ -93,7 +90,7 @@ public class SensorUtil {
 		Runnable start = new Runnable() {
 			public void run() {
 				deviceIsRunning = device.start();
-				System.out.println("started device: " + deviceIsRunning);
+				System.out.println("started device");
 			}
 		};
 		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
@@ -119,6 +116,7 @@ public class SensorUtil {
 					logger.log(Level.SEVERE, "Error reading data from device!", e);
 				}
 				if (numErrors >= 5) {
+					numErrors = 0;
 					logger.severe("Too many collection errors! Stopping device.");
 					stopDevice();
 				}
@@ -239,7 +237,6 @@ public class SensorUtil {
 				logger.info("Closing device: " + Thread.currentThread().getName());
 				if(device != null){
 					device.close();
-					logger.info("Closed device");
 					device = null;
 					logger.info("Device shut down");
 				}
