@@ -8,9 +8,13 @@ import java.util.logging.Logger;
 
 import javax.swing.JApplet;
 
+import org.concord.sensor.ExperimentConfig;
+import org.concord.sensor.SensorConfig;
 import org.concord.sensor.SensorRequest;
+import org.concord.sensor.applet.exception.ConfigureDeviceException;
 import org.concord.sensor.applet.exception.SensorAppletException;
 import org.concord.sensor.impl.SensorRequestImpl;
+import org.concord.sensor.impl.SensorUtilJava;
 
 /**
  * This applet expects the following params:
@@ -99,6 +103,41 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		});
     	return b.booleanValue();
     }
+    
+    public ExperimentConfig getDeviceConfiguration(final String deviceType) {
+    	ExperimentConfig c = AccessController.doPrivileged(new PrivilegedAction<ExperimentConfig>() {
+    		public ExperimentConfig run() {
+				SensorUtil util = findOrCreateUtil(deviceType);
+				try {
+					return util.getDeviceConfig();
+				} catch (ConfigureDeviceException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					return null;
+				}
+    		}
+		});
+    	return c;
+    }
+    
+    public SensorConfig[] getAttachedSensors(final String deviceType) {
+    	SensorConfig[] c = AccessController.doPrivileged(new PrivilegedAction<SensorConfig[]>() {
+    		public SensorConfig[] run() {
+				SensorUtil util = findOrCreateUtil(deviceType);
+				try {
+					ExperimentConfig config = util.getDeviceConfig();
+					if (config != null) {
+						return config.getSensorConfigs();
+					}
+				} catch (ConfigureDeviceException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				return null;
+    		}
+		});
+    	return c;
+    }
 
 	public void stopCollecting() {
 		AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
@@ -141,6 +180,10 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     
     public SensorRequestImpl getSensorRequest(String sensorType) {
     	return SensorUtil.getSensorRequest(sensorType);
+    }
+    
+    public String getTypeConstantName(int type) {
+    	return SensorUtilJava.getTypeConstantName(type).toLowerCase();
     }
 
 }
