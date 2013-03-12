@@ -172,6 +172,16 @@ public class SensorUtil {
 					logger.info("Checking attached: " + Thread.currentThread().getName());
 					// TODO Auto-generated method stub
 					deviceIsAttached = device.isAttached();
+					if (!deviceIsAttached) {
+						// try re-opening the device
+						try {
+						    device.close();
+						    device.open(getOpenString(getDeviceId(deviceType)));
+							deviceIsAttached = device.isAttached();
+						} catch (Exception e) {
+							deviceIsAttached = false;
+						}
+					}
 				}
 			};
 
@@ -181,6 +191,15 @@ public class SensorUtil {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+		} else {
+			logger.info("Device was null. Trying to open...");
+			try {
+			    setupDevice(sensors);
+			    deviceIsAttached = isDeviceAttached();
+			} catch (SensorAppletException e) {
+				deviceIsAttached = false;
+			}
+			
 		}
 		return deviceIsAttached;
 	}
