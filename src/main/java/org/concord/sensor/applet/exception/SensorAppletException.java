@@ -18,9 +18,5 @@ public class SensorAppletException extends Exception {
 	public SensorAppletException(Throwable cause) {
 		super(cause);
 	}
-	
-	public SensorAppletException(String msg, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-		super(msg, cause, enableSuppression, writableStackTrace);
-	}
 
 }

@@ -18,9 +18,5 @@ public class ConfigureDeviceException extends SensorAppletException {
 	public ConfigureDeviceException(Throwable cause) {
 		super(cause);
 	}
-	
-	public ConfigureDeviceException(String msg, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-		super(msg, cause, enableSuppression, writableStackTrace);
-	}
 
 }

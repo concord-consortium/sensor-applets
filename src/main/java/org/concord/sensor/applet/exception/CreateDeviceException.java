@@ -18,9 +18,5 @@ public class CreateDeviceException extends SensorAppletException {
 	public CreateDeviceException(Throwable cause) {
 		super(cause);
 	}
-	
-	public CreateDeviceException(String msg, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-		super(msg, cause, enableSuppression, writableStackTrace);
-	}
 
 }
