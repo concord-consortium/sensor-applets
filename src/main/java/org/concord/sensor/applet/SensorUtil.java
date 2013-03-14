@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,6 +35,7 @@ public class SensorUtil {
 	private boolean deviceIsAttached = false;
 	private boolean deviceIsCollectable = false;
 	private ScheduledExecutorService executor;
+	private ScheduledExecutorService jsBridgeExecutor;
 	private ScheduledFuture<?> collectionTask;
 
 	private String deviceType;
@@ -45,6 +47,7 @@ public class SensorUtil {
 		this.deviceType = deviceType;
 		this.deviceFactory = new JavaDeviceFactory();
 		this.executor = Executors.newSingleThreadScheduledExecutor();
+		this.jsBridgeExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 
     public boolean isRunning() {
@@ -65,16 +68,7 @@ public class SensorUtil {
 				}
 			};
 
-			ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
-			try {
-				task.get();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (ExecutionException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			executeAndWait(r);
 		}
 	}
 
@@ -104,7 +98,7 @@ public class SensorUtil {
 					if(numSamples > 0) {
 						final float[] dataCopy = new float[numSamples*sensors.length];
 						System.arraycopy(data, 0, dataCopy, 0, numSamples*sensors.length);
-						executor.schedule(new Runnable() {
+						jsBridgeExecutor.schedule(new Runnable() {
 							public void run() {
 								jsBridge.handleData(numSamples, sensors.length, dataCopy);
 							}
@@ -151,14 +145,7 @@ public class SensorUtil {
 				}
 			};
 
-			ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
-			try {
-				task.get();
-			} catch (InterruptedException e) {
-				throw new ConfigureDeviceException("Exception configuring device", e);
-			} catch (ExecutionException e) {
-				throw new ConfigureDeviceException("Exception configuring device", e.getCause());
-			}
+			executeAndWaitConfigure(r);
 		}
 		return reportedConfig;
 	}
@@ -183,12 +170,7 @@ public class SensorUtil {
 				}
 			};
 
-			ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
-			try {
-				task.get();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			executeAndWait(r);
 		} else {
 			logger.info("Device was null. Trying to open...");
 			try {
@@ -219,12 +201,15 @@ public class SensorUtil {
 					SensorUtilJava.printExperimentConfig(config);
 					deviceIsCollectable = true;
 					return deviceIsCollectable;
+				} else {
+					logger.info("No config!");
 				}
 			} else {
 				logger.info("device says not attached");
 			}
 		} catch (SensorAppletException e) {
 			//
+			e.printStackTrace();
 		}
 		deviceIsCollectable = false;
 		return deviceIsCollectable;
@@ -232,27 +217,21 @@ public class SensorUtil {
 
 	public void tearDownDevice() {
 		stopDevice();
+		if (device == null) {
+			return;
+		}
 		Runnable r = new Runnable() {
 			public void run() {
 				logger.info("Closing device: " + Thread.currentThread().getName());
 				if(device != null){
-					device.close();
+					deviceFactory.destroyDevice(device);
 					device = null;
+					deviceIsRunning = false;
 					logger.info("Device shut down");
 				}
 			}
 		};
-
-		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
-		try {
-			task.get();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		executeAndWait(r);
 	}
 	
 	public void destroy() {
@@ -260,6 +239,7 @@ public class SensorUtil {
 		executor.shutdown();
 		try {
 			executor.awaitTermination(5, TimeUnit.SECONDS);
+			System.err.println("Shutdown completed. All tasks terminated: " + executor.isTerminated());
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -278,14 +258,7 @@ public class SensorUtil {
 			}
 		};
 
-		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
-		try {
-			task.get();
-		} catch (InterruptedException e) {
-			throw new CreateDeviceException("Exception creating device", e);
-		} catch (ExecutionException e) {
-			throw new CreateDeviceException("Exception creating device", e.getCause());
-		}
+		executeAndWaitCreate(r);
 	}
 
 	private void configureDevice(final SensorRequest[] sensors) throws ConfigureDeviceException {
@@ -318,15 +291,7 @@ public class SensorUtil {
 			}
 
 		};
-
-		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
-		try {
-			task.get();
-		} catch (InterruptedException e) {
-			throw new ConfigureDeviceException("Exception configuring device", e);
-		} catch (ExecutionException e) {
-			throw new ConfigureDeviceException("Exception configuring device", e.getCause());
-		}
+		executeAndWaitConfigure(r);
 	}
 
 	private void configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
@@ -418,5 +383,44 @@ public class SensorUtil {
 		sensor.setPort(port);
 		sensor.setStepSize(step);
 		sensor.setType(type);
+	}
+	
+	private void executeAndWaitCreate(Runnable r) throws CreateDeviceException {
+		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
+		try {
+			task.get();
+		} catch (InterruptedException e) {
+			throw new CreateDeviceException("Exception creating device", e);
+		} catch (ExecutionException e) {
+			throw new CreateDeviceException("Exception creating device", e.getCause());
+		} catch (IllegalMonitorStateException e) {
+			throw new CreateDeviceException("Exception creating device", e);
+		}
+	}
+	
+	private void executeAndWaitConfigure(Runnable r) throws ConfigureDeviceException {
+		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
+		try {
+			task.get();
+		} catch (InterruptedException e) {
+			throw new ConfigureDeviceException("Exception configuring device", e);
+		} catch (ExecutionException e) {
+			throw new ConfigureDeviceException("Exception configuring device", e.getCause());
+		} catch (IllegalMonitorStateException e) {
+			throw new ConfigureDeviceException("Exception configuring device", e);
+		}
+	}
+	
+	private void executeAndWait(final Runnable r) {
+		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
+		try {
+			task.get();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+		} catch (IllegalMonitorStateException e) {
+			e.printStackTrace();
+		}
 	}
 }
