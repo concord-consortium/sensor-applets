@@ -20,7 +20,9 @@ import org.concord.sensor.device.SensorDevice;
 import org.concord.sensor.device.impl.DeviceConfigImpl;
 import org.concord.sensor.device.impl.DeviceID;
 import org.concord.sensor.device.impl.JavaDeviceFactory;
+import org.concord.sensor.device.impl.SensorConfigImpl;
 import org.concord.sensor.impl.ExperimentRequestImpl;
+import org.concord.sensor.impl.Range;
 import org.concord.sensor.impl.SensorRequestImpl;
 import org.concord.sensor.impl.SensorUtilJava;
 
@@ -56,7 +58,7 @@ public class SensorUtil {
 	
 	public void stopDevice() {
 		if (device != null && deviceIsRunning) {
-			if (!collectionTask.isDone()) {
+			if (collectionTask != null && !collectionTask.isDone()) {
 				collectionTask.cancel(false);
 			}
 			collectionTask = null;
@@ -119,6 +121,79 @@ public class SensorUtil {
 		double interval = Math.floor(actualConfig.getDataReadPeriod()*1000);
 		collectionTask = executor.scheduleAtFixedRate(r, 10, (long)interval, TimeUnit.MILLISECONDS);
 	}
+	
+	public float[] readSingleValue() throws SensorAppletException {
+		// TODO There's probably a more efficient way of doing this.
+		// GoIO devices, for instance, support one-shot data collection.
+		// Perhaps other devices do as well?
+		if (deviceIsRunning) { return null; }
+
+		if (device == null) {
+			setupDevice(null);
+		}
+
+		configureDevice(null);
+
+		ExperimentConfig config = getDeviceConfig();
+		if (config == null) { return null; }
+		final SensorConfig[] configs = config.getSensorConfigs();
+		if (configs == null || configs.length < 1) { return null; }
+
+		Runnable start = new Runnable() {
+			public void run() {
+				deviceIsRunning = device.start();
+				System.out.println("started device");
+			}
+		};
+		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
+		
+		final float [] buffer = new float [1024];
+		final float [] data = new float [configs.length];
+		Runnable r = new Runnable() {
+			public void run() {
+				int numErrors = 0;
+				int numCollected = 0;
+				while (numErrors < 5 && numCollected < 1) {
+					try {
+						System.out.println("Reading " + configs.length + " data points from device");
+						final int numSamples = device.read(buffer, 0, configs.length, null);
+						System.out.println("Got " + numSamples + " samples");
+						if(numSamples > 0) {
+							// read just the first value
+							synchronized(data) {
+								System.arraycopy(buffer, 0, data, 0, configs.length);
+							}
+							numCollected++;
+
+							String bufferStr = "";
+							String dataStr = "";
+							for (int i = 0; i < configs.length; i++) {
+								bufferStr += "" + buffer[i] + ",";
+								dataStr   += "" +   data[i] + ",";
+							}
+							System.out.println("From buffer: " + bufferStr);
+							System.out.println("From data: " + dataStr);
+						}
+					} catch (Exception e) {
+						numErrors++;
+						logger.log(Level.SEVERE, "Error reading data from device!", e);
+					}
+				}
+				if (numErrors >= 5) {
+					logger.severe("Too many collection errors! Stopping device.");
+				}
+			}
+		};
+		try {
+			executeAndWait(r);
+			synchronized(data) {
+				System.out.println("Sync");
+			}
+			return data;
+		} finally {
+			stopDevice();
+		}
+	}
 
 	public void setupDevice(SensorRequest[] sensors) throws CreateDeviceException, ConfigureDeviceException {
 		this.sensors = sensors;
@@ -127,9 +202,7 @@ public class SensorUtil {
 		  createDevice();
 		}
 		
-		if (sensors.length > 0) {
-		    configureDevice(sensors);
-		}
+		configureDevice(sensors);
 	}
 	
 	private ExperimentConfig reportedConfig;
@@ -191,7 +264,7 @@ public class SensorUtil {
 		}
 		try {
 			if (sensors == null || sensors.length == 0) {
-			    setupDevice(new SensorRequest[] {});
+			    setupDevice(null);
 			}
 			if (isDeviceAttached()) {
 				logger.info("Device reported as attached.");
@@ -277,9 +350,10 @@ public class SensorUtil {
 
 
 				ExperimentRequestImpl request = new ExperimentRequestImpl();
-				configureExperimentRequest(request, sensors);
-
-				request.setSensorRequests(sensors);
+				if (!configureExperimentRequest(request, sensors)) {
+					System.out.println("Couldn't configure experiment request!");
+					return;
+				}
 
 				actualConfig = device.configure(request);
 				System.out.println("Config to be used:");
@@ -294,8 +368,14 @@ public class SensorUtil {
 		executeAndWaitConfigure(r);
 	}
 
-	private void configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
+	private boolean configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
 		float minPeriod = Float.MAX_VALUE;
+		if (sensors == null || sensors.length == 0) {
+			sensors = getSensorsFromCurrentConfig();
+			if (sensors == null || sensors.length == 0) {
+				return false;
+			}
+		}
 		for (SensorRequest sensor : sensors) {
 			float period = getPeriod(sensor);
 			if (period < minPeriod) {
@@ -304,8 +384,30 @@ public class SensorUtil {
 		}
 		experiment.setPeriod(minPeriod);
 		experiment.setNumberOfSamples(-1);
+
+		experiment.setSensorRequests(sensors);
+		return true;
 	}
-	
+
+	// This should only be called from within the executor thread!!!
+	private SensorRequest[] getSensorsFromCurrentConfig() {
+		ExperimentConfig deviceConfig = device.getCurrentConfig();;
+		if (deviceConfig == null || deviceConfig.getSensorConfigs() == null) {
+			return null;
+		}
+		SensorConfig[] configs = deviceConfig.getSensorConfigs();
+		SensorRequest[] reqs = new SensorRequest[configs.length];
+		for (int i = 0; i < configs.length; i++) {
+			SensorConfigImpl config = (SensorConfigImpl) configs[i];
+			SensorRequestImpl sensorReq = new SensorRequestImpl();
+			Range r = config.getValueRange();
+			if (r == null) { r = new Range(-10000f, 10000f); }
+			configureSensorRequest(sensorReq, 1, r.minimum, r.maximum, config.getPort(), config.getStepSize(), config.getType());
+			reqs[i] = sensorReq;
+		}
+		return reqs;
+	}
+
 	private float getPeriod(SensorRequest sensor) {
 		switch (sensor.getType()) {
 		case SensorConfig.QUANTITY_CO2_GAS:
