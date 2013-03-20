@@ -1,11 +1,11 @@
 package org.concord.sensor.applet;
 
 import java.applet.Applet;
+import java.awt.EventQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -52,10 +52,51 @@ public class SensorUtil {
 		this.jsBridgeExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 
-    public boolean isRunning() {
-    	return deviceIsRunning;
-    }
+	public boolean isRunning() {
+		return deviceIsRunning;
+	}
+
+	public void stopDeviceError(final JavascriptDataBridge jsBridge) {
+		stopDevice();
+		// Figure out what went wrong...
+		// Do we still have a device?
+		try {
+			if (isDeviceAttached()) {
+				ExperimentConfig config = getDeviceConfig();
+				if (config == null) {
+					notifyDeviceUnplugged(jsBridge);
+				}
+				if (config.getSensorConfigs() == null || config.getSensorConfigs().length != sensors.length) {
+					notifySensorUnplugged(jsBridge);
+				}
+				// TODO See if we can figure out which sensor(s) got unplugged
+				System.out.println("Somehow we didn't detect a connection error!");
+			} else {
+				notifyDeviceUnplugged(jsBridge);
+			}
+		} catch (ConfigureDeviceException e) {
+			notifyDeviceUnplugged(jsBridge);
+		}
+	}
 	
+	private void notifyDeviceUnplugged(final JavascriptDataBridge jsBridge) {
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+				System.err.println("Notifying device was unplugged.");
+				jsBridge.notifyDeviceUnplugged();
+			}
+		}, 0, TimeUnit.MILLISECONDS);
+	}
+	
+	private void notifySensorUnplugged(final JavascriptDataBridge jsBridge) {
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+				System.err.println("Notifying sensor was unplugged.");
+				jsBridge.notifySensorUnplugged();
+			}
+		}, 0, TimeUnit.MILLISECONDS);
+	}
+
 	public void stopDevice() {
 		if (device != null && deviceIsRunning) {
 			if (collectionTask != null && !collectionTask.isDone()) {
@@ -65,15 +106,34 @@ public class SensorUtil {
 			Runnable r = new Runnable() {
 				public void run() {
 					logger.info("Stopping device: " + Thread.currentThread().getName());
-					device.stop(true);
 					deviceIsRunning = false;
+					device.stop(true);
 				}
 			};
 
+			if (!executeAndWait(r)) {
+				// try closing and re-opening the device
+				System.err.println("Stopping had errors! Closing and re-opening.");
+				tearDownDevice();
+			}
+		}
+	}
+
+	private void reopenDevice(boolean skipExecutor) {
+		Runnable r = new Runnable() {
+			public void run() {
+				device.close();
+				device.open(getOpenString(getDeviceId(deviceType)));
+			}
+		};
+		if (skipExecutor) {
+			r.run();
+		} else {
 			executeAndWait(r);
 		}
 	}
 
+	private int numErrors = 0;
 	public void startDevice(final JavascriptDataBridge jsBridge) throws CreateDeviceException, ConfigureDeviceException {
 		if (deviceIsRunning) { return; }
 
@@ -81,48 +141,59 @@ public class SensorUtil {
 			setupDevice(sensors);
 		}
 		
-		configureDevice(sensors);
-
-		Runnable start = new Runnable() {
-			public void run() {
-				deviceIsRunning = device.start();
-				System.out.println("started device");
-			}
-		};
-		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
-
-		final float [] data = new float [1024];
-		Runnable r = new Runnable() {
-			private int numErrors = 0;
-			public void run() {
-				try {
-					final int numSamples = device.read(data, 0, sensors.length, null);
-					if(numSamples > 0) {
-						final float[] dataCopy = new float[numSamples*sensors.length];
-						System.arraycopy(data, 0, dataCopy, 0, numSamples*sensors.length);
-						jsBridgeExecutor.schedule(new Runnable() {
-							public void run() {
-								jsBridge.handleData(numSamples, sensors.length, dataCopy);
-							}
-						}, 0, TimeUnit.MILLISECONDS);
-					}
-					numErrors = 0;
-				} catch (Exception e) {
-					numErrors++;
-					logger.log(Level.SEVERE, "Error reading data from device!", e);
-				}
-				if (numErrors >= 5) {
-					numErrors = 0;
-					logger.severe("Too many collection errors! Stopping device.");
-					stopDevice();
-				}
-			}
-		};
-		double interval = Math.floor(actualConfig.getDataReadPeriod()*1000);
-		collectionTask = executor.scheduleAtFixedRate(r, 10, (long)interval, TimeUnit.MILLISECONDS);
-	}
+		if (isDeviceAttached()) {
+			configureDevice(sensors);
 	
-	public float[] readSingleValue() throws SensorAppletException {
+			Runnable start = new Runnable() {
+				public void run() {
+					deviceIsRunning = device.start();
+					System.out.println("started device");
+				}
+			};
+			executor.schedule(start, 0, TimeUnit.MILLISECONDS);
+	
+			final float[] data = new float[1024];
+			Runnable r = new Runnable() {
+				public void run() {
+					try {
+						final int numSamples = device.read(data, 0, sensors.length, null);
+						if (numSamples > 0) {
+							final float[] dataCopy = new float[numSamples * sensors.length];
+							System.arraycopy(data, 0, dataCopy, 0, numSamples * sensors.length);
+							jsBridgeExecutor.schedule(new Runnable() {
+								public void run() {
+									jsBridge.handleData(numSamples, sensors.length, dataCopy);
+								}
+							}, 0, TimeUnit.MILLISECONDS);
+
+							numErrors = 0;
+						} else {
+							// some devices (ex: GoIO) report -1 samples to indicate an error, or
+							// will just report 0 samples continuously after being unplugged
+							numErrors++;
+						}
+					} catch (Exception e) {
+						numErrors++;
+						logger.log(Level.SEVERE, "Error reading data from device!", e);
+					}
+					if (numErrors >= 5) {
+						numErrors = 0;
+						logger.severe("Too many collection errors! Stopping device.");
+						EventQueue.invokeLater(new Runnable(){
+							public void run() {
+								stopDeviceError(jsBridge);
+							}
+						});
+					}
+				}
+			};
+			numErrors = 0;
+			double interval = Math.floor(actualConfig.getDataReadPeriod() * 1000);
+			collectionTask = executor.scheduleAtFixedRate(r, 10, (long) interval, TimeUnit.MILLISECONDS);
+		}
+	}
+
+	public float[] readSingleValue(JavascriptDataBridge jsBridge) throws SensorAppletException {
 		// TODO There's probably a more efficient way of doing this.
 		// GoIO devices, for instance, support one-shot data collection.
 		// Perhaps other devices do as well?
@@ -146,33 +217,26 @@ public class SensorUtil {
 			}
 		};
 		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
-		
-		final float [] buffer = new float [1024];
-		final float [] data = new float [configs.length];
+
+		final float[] buffer = new float[1024];
+		final float[] data = new float[configs.length];
 		Runnable r = new Runnable() {
 			public void run() {
-				int numErrors = 0;
 				int numCollected = 0;
 				while (numErrors < 5 && numCollected < 1) {
 					try {
-						System.out.println("Reading " + configs.length + " data points from device");
 						final int numSamples = device.read(buffer, 0, configs.length, null);
-						System.out.println("Got " + numSamples + " samples");
-						if(numSamples > 0) {
+						if (numSamples > 0) {
 							// read just the first value
-							synchronized(data) {
+							synchronized (data) {
 								System.arraycopy(buffer, 0, data, 0, configs.length);
 							}
 							numCollected++;
-
-							String bufferStr = "";
-							String dataStr = "";
-							for (int i = 0; i < configs.length; i++) {
-								bufferStr += "" + buffer[i] + ",";
-								dataStr   += "" +   data[i] + ",";
-							}
-							System.out.println("From buffer: " + bufferStr);
-							System.out.println("From data: " + dataStr);
+							numErrors = 0;
+						} else {
+							// some devices (ex: GoIO) report -1 samples to indicate an error, or
+							// will just report 0 samples continuously after being unplugged
+							numErrors++;
 						}
 					} catch (Exception e) {
 						numErrors++;
@@ -180,41 +244,49 @@ public class SensorUtil {
 					}
 				}
 				if (numErrors >= 5) {
-					logger.severe("Too many collection errors! Stopping device.");
+					logger.severe("Too many collection errors while getting single value! Stopping device.");
 				}
 			}
 		};
 		try {
+			numErrors = 0;
 			executeAndWait(r);
-			synchronized(data) {
+			synchronized (data) {
 				System.out.println("Sync");
 			}
 			return data;
 		} finally {
-			stopDevice();
+			if (numErrors >= 5) {
+				stopDeviceError(jsBridge);
+			} else {
+			    stopDevice();
+			}
 		}
 	}
 
 	public void setupDevice(SensorRequest[] sensors) throws CreateDeviceException, ConfigureDeviceException {
 		this.sensors = sensors;
-		
+
 		if (device == null) {
-		  createDevice();
+			createDevice();
 		}
-		
+
 		configureDevice(sensors);
 	}
-	
+
 	private ExperimentConfig reportedConfig;
+	private long reportedConfigLoadedAt = 0;
+
 	public ExperimentConfig getDeviceConfig() throws ConfigureDeviceException {
 		reportedConfig = null;
-		if (device != null) {
+		if (device != null && (reportedConfig == null || (System.currentTimeMillis() - reportedConfigLoadedAt) > 1000)) {
 			Runnable r = new Runnable() {
 				public void run() {
 					logger.info("Getting device config: " + Thread.currentThread().getName());
 					// Check what is attached, this isn't necessary if you know what you want
-					// to be attached.  But sometimes you want the user to see what is attached
+					// to be attached. But sometimes you want the user to see what is attached
 					reportedConfig = device.getCurrentConfig();
+					reportedConfigLoadedAt = System.currentTimeMillis();
 				}
 			};
 
@@ -222,7 +294,7 @@ public class SensorUtil {
 		}
 		return reportedConfig;
 	}
-	
+
 	public boolean isDeviceAttached() {
 		if (device != null) {
 			Runnable r = new Runnable() {
@@ -233,8 +305,7 @@ public class SensorUtil {
 					if (!deviceIsAttached) {
 						// try re-opening the device
 						try {
-						    device.close();
-						    device.open(getOpenString(getDeviceId(deviceType)));
+							reopenDevice(true);
 							deviceIsAttached = device.isAttached();
 						} catch (Exception e) {
 							deviceIsAttached = false;
@@ -247,24 +318,24 @@ public class SensorUtil {
 		} else {
 			logger.info("Device was null. Trying to open...");
 			try {
-			    setupDevice(sensors);
-			    deviceIsAttached = isDeviceAttached();
+				setupDevice(sensors);
+				deviceIsAttached = isDeviceAttached();
 			} catch (SensorAppletException e) {
 				deviceIsAttached = false;
 			}
-			
+
 		}
 		return deviceIsAttached;
 	}
-	
+
 	public boolean isCollectable() {
 		logger.info("Checking for sensor interface: " + deviceType);
 		if (sensors != null && sensors.length > 0 && deviceIsCollectable) {
 			return deviceIsCollectable;
 		}
 		try {
-			if (sensors == null || sensors.length == 0) {
-			    setupDevice(null);
+			if (device == null) {
+				setupDevice(null);
 			}
 			if (isDeviceAttached()) {
 				logger.info("Device reported as attached.");
@@ -296,7 +367,7 @@ public class SensorUtil {
 		Runnable r = new Runnable() {
 			public void run() {
 				logger.info("Closing device: " + Thread.currentThread().getName());
-				if(device != null){
+				if (device != null) {
 					deviceFactory.destroyDevice(device);
 					device = null;
 					deviceIsRunning = false;
@@ -306,7 +377,7 @@ public class SensorUtil {
 		};
 		executeAndWait(r);
 	}
-	
+
 	public void destroy() {
 		tearDownDevice();
 		executor.shutdown();
@@ -346,7 +417,7 @@ public class SensorUtil {
 //					System.out.println("  IS NULL");
 //				} else {
 //					SensorUtilJava.printExperimentConfig(currentConfig);
-//				} 
+//				}
 
 
 				ExperimentRequestImpl request = new ExperimentRequestImpl();
@@ -391,7 +462,7 @@ public class SensorUtil {
 
 	// This should only be called from within the executor thread!!!
 	private SensorRequest[] getSensorsFromCurrentConfig() {
-		ExperimentConfig deviceConfig = device.getCurrentConfig();;
+		ExperimentConfig deviceConfig = device.getCurrentConfig();
 		if (deviceConfig == null || deviceConfig.getSensorConfigs() == null) {
 			return null;
 		}
@@ -486,7 +557,7 @@ public class SensorUtil {
 		sensor.setStepSize(step);
 		sensor.setType(type);
 	}
-	
+
 	private void executeAndWaitCreate(Runnable r) throws CreateDeviceException {
 		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
 		try {
@@ -499,7 +570,7 @@ public class SensorUtil {
 			throw new CreateDeviceException("Exception creating device", e);
 		}
 	}
-	
+
 	private void executeAndWaitConfigure(Runnable r) throws ConfigureDeviceException {
 		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
 		try {
@@ -512,17 +583,15 @@ public class SensorUtil {
 			throw new ConfigureDeviceException("Exception configuring device", e);
 		}
 	}
-	
-	private void executeAndWait(final Runnable r) {
+
+	private boolean executeAndWait(final Runnable r) {
 		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
 		try {
 			task.get();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			e.printStackTrace();
-		} catch (IllegalMonitorStateException e) {
+			return true;
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return false;
 	}
 }

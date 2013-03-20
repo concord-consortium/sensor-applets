@@ -3,7 +3,6 @@ package org.concord.sensor.applet;
 import java.applet.Applet;
 
 import netscape.javascript.JSException;
-
 import netscape.javascript.JSObject;
 
 public class JavascriptDataBridge {
@@ -13,6 +12,18 @@ public class JavascriptDataBridge {
     public JavascriptDataBridge(String javascriptObjectPath, Applet applet) {
         window = JSObject.getWindow(applet);
         handlerPath = javascriptObjectPath;
+    }
+
+    public void sensorsReady() {
+        window.eval(handlerPath + ".sensorsReady();");
+    }
+
+    public void notifyDeviceUnplugged() {
+        window.eval(handlerPath + ".deviceUnplugged()");
+    }
+
+    public void notifySensorUnplugged() {
+        window.eval(handlerPath + ".sensorUnplugged()");
     }
     
     // We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
@@ -53,9 +64,4 @@ public class JavascriptDataBridge {
         buf.append("]");
         return buf.toString();
     }
-
-    public void sensorsReady() {
-        window.eval(handlerPath + ".sensorsReady();");
-    }
-
 }

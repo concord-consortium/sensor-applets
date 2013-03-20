@@ -144,7 +144,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     		public float[] run() {
 				SensorUtil util = findOrCreateUtil(deviceType);
 				try {
-					return util.readSingleValue();
+					return util.readSingleValue(jsBridge);
 				} catch (SensorAppletException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
