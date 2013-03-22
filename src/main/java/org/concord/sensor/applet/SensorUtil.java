@@ -106,7 +106,7 @@ public class SensorUtil {
 			collectionTask = null;
 			Runnable r = new Runnable() {
 				public void run() {
-					logger.info("Stopping device: " + Thread.currentThread().getName());
+					logger.fine("Stopping device: " + Thread.currentThread().getName());
 					deviceIsRunning = false;
 					device.stop(true);
 				}
@@ -294,7 +294,7 @@ public class SensorUtil {
 		if (device != null && (reportedConfig == null || (System.currentTimeMillis() - reportedConfigLoadedAt) > 1000)) {
 			Runnable r = new Runnable() {
 				public void run() {
-					logger.info("Getting device config: " + Thread.currentThread().getName());
+					logger.fine("Getting device config: " + Thread.currentThread().getName());
 					// Check what is attached, this isn't necessary if you know what you want
 					// to be attached. But sometimes you want the user to see what is attached
 					reportedConfig = device.getCurrentConfig();
@@ -311,7 +311,7 @@ public class SensorUtil {
 		if (device != null) {
 			Runnable r = new Runnable() {
 				public void run() {
-					logger.info("Checking attached: " + Thread.currentThread().getName());
+					logger.fine("Checking attached: " + Thread.currentThread().getName());
 					// TODO Auto-generated method stub
 					deviceIsAttached = device.isAttached();
 					if (!deviceIsAttached) {
@@ -341,7 +341,7 @@ public class SensorUtil {
 	}
 
 	public boolean isCollectable() {
-		logger.info("Checking for sensor interface: " + deviceType);
+		logger.fine("Checking for sensor interface: " + deviceType);
 		if (sensors != null && sensors.length > 0 && deviceIsCollectable) {
 			return deviceIsCollectable;
 		}
@@ -350,18 +350,18 @@ public class SensorUtil {
 				setupDevice(null);
 			}
 			if (isDeviceAttached()) {
-				logger.info("Device reported as attached.");
+				logger.fine("Device reported as attached.");
 				ExperimentConfig config = getDeviceConfig();
 				if (config != null) {
-					logger.info("Interface is connected. Here's the config: ");
+					System.err.println("Interface is connected. Here's the config: ");
 					SensorUtilJava.printExperimentConfig(config);
 					deviceIsCollectable = true;
 					return deviceIsCollectable;
 				} else {
-					logger.info("No config!");
+					logger.fine("No config!");
 				}
 			} else {
-				logger.info("device says not attached");
+				logger.fine("device says not attached");
 			}
 		} catch (SensorAppletException e) {
 			//
@@ -378,12 +378,12 @@ public class SensorUtil {
 		}
 		Runnable r = new Runnable() {
 			public void run() {
-				logger.info("Closing device: " + Thread.currentThread().getName());
+				logger.fine("Closing device: " + Thread.currentThread().getName());
 				if (device != null) {
 					deviceFactory.destroyDevice(device);
 					device = null;
 					deviceIsRunning = false;
-					logger.info("Device shut down");
+					logger.fine("Device shut down");
 				}
 			}
 		};
@@ -408,7 +408,7 @@ public class SensorUtil {
 	private void createDevice() throws CreateDeviceException {
 		Runnable r = new Runnable() {
 			public void run() {
-				logger.info("Creating device: " + Thread.currentThread().getName());
+				logger.fine("Creating device: " + Thread.currentThread().getName());
 				int deviceId = getDeviceId(deviceType);
 				device = deviceFactory.createDevice(new DeviceConfigImpl(deviceId, getOpenString(deviceId)));
 			}
@@ -421,7 +421,7 @@ public class SensorUtil {
 		if (!force && configuredSensors == sensors) { return; }
 		Runnable r = new Runnable() {
 			public void run() {
-				logger.info("Configuring device: " + Thread.currentThread().getName());
+				logger.fine("Configuring device: " + Thread.currentThread().getName());
 				// Check what is attached, this isn't necessary if you know what you want
 				// to be attached.  But sometimes you want the user to see what is attached
 //				ExperimentConfig currentConfig = device.getCurrentConfig();
@@ -468,6 +468,7 @@ public class SensorUtil {
 				minPeriod = period;
 			}
 		}
+		System.out.println("Configured min period: " + minPeriod);
 		experiment.setPeriod(minPeriod);
 		experiment.setNumberOfSamples(-1);
 
@@ -511,7 +512,7 @@ public class SensorUtil {
 	}
 
 	private int getDeviceId(String id) {
-		logger.info("Requested device of: " + id);
+		logger.fine("Requested device of: " + id);
 		if (id.equals("golink") || id.equals("goio")) {
 			return DeviceID.VERNIER_GO_LINK_JNA;
 		} else if (id.equals("labquest")) {
