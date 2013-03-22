@@ -66,12 +66,15 @@ public class SensorUtil {
 				ExperimentConfig config = getDeviceConfig();
 				if (config == null) {
 					notifyDeviceUnplugged(jsBridge);
+					return;
 				}
 				if (config.getSensorConfigs() == null || config.getSensorConfigs().length != sensors.length) {
 					notifySensorUnplugged(jsBridge);
+					return;
 				}
 				// TODO See if we can figure out which sensor(s) got unplugged
 				System.out.println("Somehow we didn't detect a connection error!");
+				configureDevice(sensors, true);
 			} else {
 				notifyDeviceUnplugged(jsBridge);
 			}
@@ -418,7 +421,7 @@ public class SensorUtil {
 	}
 
 	private void configureDevice(final SensorRequest[] sensors, boolean force) throws ConfigureDeviceException {
-		if (!force && configuredSensors == sensors) { return; }
+		if ((!force) && configuredSensors == sensors) { return; }
 		Runnable r = new Runnable() {
 			public void run() {
 				logger.fine("Configuring device: " + Thread.currentThread().getName());
@@ -443,6 +446,7 @@ public class SensorUtil {
 				System.out.println("Config to be used:");
 				if (actualConfig == null) {
 					System.out.println("IS ALSO NULL <-- BAD!");
+					deviceIsCollectable = false;
 				} else {
 					SensorUtilJava.printExperimentConfig(actualConfig);
 					configuredSensors = sensors;
