@@ -43,6 +43,7 @@ public class SensorUtil {
 	private String deviceType;
 
 	private SensorRequest[] sensors;
+	private SensorRequest[] configuredSensors;
 
 	public SensorUtil(Applet applet, String deviceType) {
 		this.applet = applet;
@@ -142,7 +143,7 @@ public class SensorUtil {
 		}
 		
 		if (isDeviceAttached()) {
-			configureDevice(sensors);
+			configureDevice(sensors, true);
 	
 			Runnable start = new Runnable() {
 				public void run() {
@@ -204,15 +205,22 @@ public class SensorUtil {
 		}
 
 		if (allAttachedSensors) {
-			configureDevice(null);
+			configureDevice(null, false);
 		} else {
-			configureDevice(sensors);
+			configureDevice(sensors, false);
 		}
 
-		ExperimentConfig config = getDeviceConfig();
-		if (config == null) { return null; }
-		final SensorConfig[] configs = config.getSensorConfigs();
-		if (configs == null || configs.length < 1) { return null; }
+		int numSensorsTmp = 1;
+		if (allAttachedSensors || sensors == null) {
+			ExperimentConfig config = getDeviceConfig();
+			if (config == null) { return null; }
+			final SensorConfig[] configs = config.getSensorConfigs();
+			numSensorsTmp = configs.length;
+			if (configs == null || numSensorsTmp < 1) { return null; }
+		} else {
+			numSensorsTmp = sensors.length;
+		}
+		final int numSensors = numSensorsTmp;
 
 		Runnable start = new Runnable() {
 			public void run() {
@@ -223,17 +231,17 @@ public class SensorUtil {
 		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
 
 		final float[] buffer = new float[1024];
-		final float[] data = new float[configs.length];
+		final float[] data = new float[numSensorsTmp];
 		Runnable r = new Runnable() {
 			public void run() {
 				int numCollected = 0;
 				while (numErrors < 5 && numCollected < 1) {
 					try {
-						final int numSamples = device.read(buffer, 0, configs.length, null);
+						final int numSamples = device.read(buffer, 0, numSensors, null);
 						if (numSamples > 0) {
 							// read just the first value
 							synchronized (data) {
-								System.arraycopy(buffer, 0, data, 0, configs.length);
+								System.arraycopy(buffer, 0, data, 0, numSensors);
 							}
 							numCollected++;
 							numErrors = 0;
@@ -275,7 +283,7 @@ public class SensorUtil {
 			createDevice();
 		}
 
-		configureDevice(sensors);
+		configureDevice(sensors, true);
 	}
 
 	private ExperimentConfig reportedConfig;
@@ -409,7 +417,8 @@ public class SensorUtil {
 		executeAndWaitCreate(r);
 	}
 
-	private void configureDevice(final SensorRequest[] sensors) throws ConfigureDeviceException {
+	private void configureDevice(final SensorRequest[] sensors, boolean force) throws ConfigureDeviceException {
+		if (!force && configuredSensors == sensors) { return; }
 		Runnable r = new Runnable() {
 			public void run() {
 				logger.info("Configuring device: " + Thread.currentThread().getName());
@@ -436,6 +445,8 @@ public class SensorUtil {
 					System.out.println("IS ALSO NULL <-- BAD!");
 				} else {
 					SensorUtilJava.printExperimentConfig(actualConfig);
+					configuredSensors = sensors;
+					deviceIsCollectable = true;
 				}
 			}
 
