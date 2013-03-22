@@ -193,7 +193,7 @@ public class SensorUtil {
 		}
 	}
 
-	public float[] readSingleValue(JavascriptDataBridge jsBridge) throws SensorAppletException {
+	public float[] readSingleValue(JavascriptDataBridge jsBridge, boolean allAttachedSensors) throws SensorAppletException {
 		// TODO There's probably a more efficient way of doing this.
 		// GoIO devices, for instance, support one-shot data collection.
 		// Perhaps other devices do as well?
@@ -203,7 +203,11 @@ public class SensorUtil {
 			setupDevice(null);
 		}
 
-		configureDevice(null);
+		if (allAttachedSensors) {
+			configureDevice(null);
+		} else {
+			configureDevice(sensors);
+		}
 
 		ExperimentConfig config = getDeviceConfig();
 		if (config == null) { return null; }

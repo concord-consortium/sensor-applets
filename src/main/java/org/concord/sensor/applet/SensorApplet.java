@@ -139,12 +139,20 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	return c;
     }
     
-    public float[] getAttachedSensorsValues(final String deviceType) {
+    public float[] getAttachedSensorsValues(String deviceType) {
+    	return getSensorsValues(deviceType, true);
+    }
+    
+    public float[] getConfiguredSensorsValues(String deviceType) {
+    	return getSensorsValues(deviceType, false);
+    }
+    
+    private float[] getSensorsValues(final String deviceType, final boolean allSensors) {
     	float[] out = AccessController.doPrivileged(new PrivilegedAction<float[]>() {
     		public float[] run() {
 				SensorUtil util = findOrCreateUtil(deviceType);
 				try {
-					return util.readSingleValue(jsBridge);
+					return util.readSingleValue(jsBridge, allSensors);
 				} catch (SensorAppletException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
