@@ -76,9 +76,15 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     				jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
 
     				
-    				findOrCreateUtil(deviceType).setupDevice(sensors);
-
-    				jsBridge.sensorsReady();
+    				SensorUtil util = findOrCreateUtil(deviceType);
+    				util.setupDevice(sensors);
+    				if (util.isActualConfigValid()) {
+    					jsBridge.sensorsReady();
+    				} else {
+    					jsBridge.notifySensorUnplugged();
+    					util.reconfigureNextTime();
+    					return Boolean.FALSE;
+    				}
     			} catch (SensorAppletException e) {
     				e.printStackTrace();
     				return Boolean.FALSE;
@@ -144,7 +150,14 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     }
     
     public float[] getConfiguredSensorsValues(String deviceType) {
-    	return getSensorsValues(deviceType, false);
+    	SensorUtil util = findOrCreateUtil(deviceType);
+		if (util.isActualConfigValid()) {
+	    	return getSensorsValues(deviceType, false);
+		} else {
+			jsBridge.notifySensorUnplugged();
+			util.reconfigureNextTime();
+			return null;
+		}
     }
     
     private float[] getSensorsValues(final String deviceType, final boolean allSensors) {

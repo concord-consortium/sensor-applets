@@ -2,6 +2,7 @@ package org.concord.sensor.applet;
 
 import java.applet.Applet;
 import java.awt.EventQueue;
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -613,5 +614,40 @@ public class SensorUtil {
 			e.printStackTrace();
 		}
 		return false;
+	}
+
+	public boolean isActualConfigValid() {
+		if (reconfigureNextTime) {
+			reconfigureNextTime = false;
+			try {
+				configureDevice(sensors, true);
+			} catch (ConfigureDeviceException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			}
+		}
+		if (actualConfig == null) { return false; }
+		if (sensors == null) { return true; }
+		SensorConfig[] actuals = actualConfig.getSensorConfigs();
+		if (actuals.length != sensors.length) { return false; }
+		int[] actualTypes = new int[actuals.length];
+		int[] reqTypes = new int[sensors.length];
+		for (int i = 0; i < actuals.length; i++) {
+			int aType = actuals[i].getType();
+			actualTypes[i] = aType;
+			int rType = sensors[i].getType();
+			reqTypes[i] = rType;
+			System.err.println("Recording types: " + aType + ", " + rType);
+		}
+		Arrays.sort(actualTypes);
+		Arrays.sort(reqTypes);
+		System.err.println("Comparing sensor arrays: " + Arrays.toString(actualTypes) + ", " + Arrays.toString(reqTypes));
+		return Arrays.equals(actualTypes, reqTypes);
+	}
+
+	private boolean reconfigureNextTime = false;
+	public void reconfigureNextTime() {
+		reconfigureNextTime = true;
 	}
 }
