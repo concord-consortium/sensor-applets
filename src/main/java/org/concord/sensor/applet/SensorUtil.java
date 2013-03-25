@@ -29,6 +29,8 @@ import org.concord.sensor.impl.SensorUtilJava;
 
 public class SensorUtil {
 	private static final Logger logger = Logger.getLogger(SensorUtil.class.getName());
+	
+	private static final int MAX_READ_ERRORS = 7;
 
 	private Applet applet;
 	private JavaDeviceFactory deviceFactory;
@@ -181,7 +183,7 @@ public class SensorUtil {
 						numErrors++;
 						logger.log(Level.SEVERE, "Error reading data from device!", e);
 					}
-					if (numErrors >= 5) {
+					if (numErrors >= MAX_READ_ERRORS) {
 						numErrors = 0;
 						logger.severe("Too many collection errors! Stopping device.");
 						EventQueue.invokeLater(new Runnable(){
@@ -244,7 +246,7 @@ public class SensorUtil {
 		Runnable r = new Runnable() {
 			public void run() {
 				int numCollected = 0;
-				while (numErrors < 5 && numCollected < 1) {
+				while (numErrors < MAX_READ_ERRORS && numCollected < 1) {
 					try {
 						final int numSamples = device.read(buffer, 0, numSensors, null);
 						if (numSamples > 0) {
@@ -265,7 +267,7 @@ public class SensorUtil {
 						logger.log(Level.SEVERE, "Error reading data from device!", e);
 					}
 				}
-				if (numErrors >= 5) {
+				if (numErrors >= MAX_READ_ERRORS) {
 					logger.severe("Too many collection errors while getting single value! Stopping device.");
 				}
 			}
