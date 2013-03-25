@@ -630,7 +630,7 @@ public class SensorUtil {
 		if (actualConfig == null) { return false; }
 		if (sensors == null) { return true; }
 		SensorConfig[] actuals = actualConfig.getSensorConfigs();
-		if (actuals.length != sensors.length) { return false; }
+		if (actuals == null || actuals.length != sensors.length) { return false; }
 		int[] actualTypes = new int[actuals.length];
 		int[] reqTypes = new int[sensors.length];
 		for (int i = 0; i < actuals.length; i++) {
