@@ -215,16 +215,21 @@ public class SensorUtil {
 		}
 
 		int numSensorsTmp = 1;
+		float minPeriodTmp = Float.MAX_VALUE;
 		if (allAttachedSensors || sensors == null) {
 			ExperimentConfig config = getDeviceConfig();
 			if (config == null) { return null; }
 			final SensorConfig[] configs = config.getSensorConfigs();
 			numSensorsTmp = configs.length;
 			if (configs == null || numSensorsTmp < 1) { return null; }
+			minPeriodTmp = config.getPeriod();
+			if (minPeriodTmp < 0.001) { minPeriodTmp = 0.1f; }
 		} else {
 			numSensorsTmp = sensors.length;
+			minPeriodTmp = getMinPeriod(sensors);
 		}
 		final int numSensors = numSensorsTmp;
+		final float minPeriod = minPeriodTmp;
 
 		Runnable start = new Runnable() {
 			public void run() {
@@ -253,6 +258,7 @@ public class SensorUtil {
 							// some devices (ex: GoIO) report -1 samples to indicate an error, or
 							// will just report 0 samples continuously after being unplugged
 							numErrors++;
+							Thread.sleep((int)(1000 * minPeriod));
 						}
 					} catch (Exception e) {
 						numErrors++;
@@ -266,9 +272,11 @@ public class SensorUtil {
 		};
 		try {
 			numErrors = 0;
-			executeAndWait(r);
+			executeAndWait(r, 10);
 			synchronized (data) {
-				System.out.println("Sync");
+				// A no-op, basically, just to ensure this synchronized block
+				// doesn't get optimized away completely.
+				numSensorsTmp = 0;
 			}
 			return data;
 		} finally {
@@ -460,25 +468,31 @@ public class SensorUtil {
 	}
 
 	private boolean configureExperimentRequest(ExperimentRequestImpl experiment, SensorRequest[] sensors) {
-		float minPeriod = Float.MAX_VALUE;
 		if (sensors == null || sensors.length == 0) {
 			sensors = getSensorsFromCurrentConfig();
 			if (sensors == null || sensors.length == 0) {
 				return false;
 			}
 		}
-		for (SensorRequest sensor : sensors) {
-			float period = getPeriod(sensor);
-			if (period < minPeriod) {
-				minPeriod = period;
-			}
-		}
+
+		float minPeriod = getMinPeriod(sensors);
 		System.out.println("Configured min period: " + minPeriod);
 		experiment.setPeriod(minPeriod);
 		experiment.setNumberOfSamples(-1);
 
 		experiment.setSensorRequests(sensors);
 		return true;
+	}
+	
+	private float getMinPeriod(SensorRequest[] sensors) {
+		float minPeriod = Float.MAX_VALUE;
+		for (SensorRequest sensor : sensors) {
+			float period = getPeriod(sensor);
+			if (period < minPeriod) {
+				minPeriod = period;
+			}
+		}
+		return minPeriod;
 	}
 
 	// This should only be called from within the executor thread!!!
@@ -606,7 +620,11 @@ public class SensorUtil {
 	}
 
 	private boolean executeAndWait(final Runnable r) {
-		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
+		return executeAndWait(r, 0);
+	}
+
+	private boolean executeAndWait(final Runnable r, int delayMs) {
+		ScheduledFuture<?> task = executor.schedule(r, delayMs, TimeUnit.MILLISECONDS);
 		try {
 			task.get();
 			return true;
