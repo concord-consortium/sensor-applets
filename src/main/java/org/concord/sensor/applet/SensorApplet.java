@@ -83,9 +83,16 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     				} else {
     					jsBridge.notifySensorUnplugged();
     					util.reconfigureNextTime();
-    					return Boolean.FALSE;
     				}
     			} catch (SensorAppletException e) {
+    				e.printStackTrace();
+    				return Boolean.FALSE;
+    			} catch (RuntimeException re) {
+    				System.err.println("Caught unexpected runtime exception...");
+    				re.printStackTrace();
+    				return Boolean.FALSE;
+    			} catch (Exception e) {
+    				System.err.println("Caught unexpected exception...");
     				e.printStackTrace();
     				return Boolean.FALSE;
     			}
