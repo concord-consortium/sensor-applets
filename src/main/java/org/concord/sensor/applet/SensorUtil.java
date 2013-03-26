@@ -44,6 +44,7 @@ public class SensorUtil {
 	private ScheduledFuture<?> collectionTask;
 
 	private String deviceType;
+	private String executorThreadName;
 
 	private SensorRequest[] sensors;
 	private SensorRequest[] configuredSensors;
@@ -54,6 +55,17 @@ public class SensorUtil {
 		this.deviceFactory = new JavaDeviceFactory();
 		this.executor = Executors.newSingleThreadScheduledExecutor();
 		this.jsBridgeExecutor = Executors.newSingleThreadScheduledExecutor();
+		ScheduledFuture<?> task = executor.schedule(new Runnable() {
+			public void run() {
+				executorThreadName = Thread.currentThread().getName();
+			}
+		}, 0, TimeUnit.MILLISECONDS);
+		try {
+			task.get();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public boolean isRunning() {
@@ -157,7 +169,7 @@ public class SensorUtil {
 					System.out.println("started device");
 				}
 			};
-			executor.schedule(start, 0, TimeUnit.MILLISECONDS);
+			execute(start, 0);
 	
 			final float[] data = new float[1024];
 			Runnable r = new Runnable() {
@@ -239,7 +251,7 @@ public class SensorUtil {
 				System.out.println("started device");
 			}
 		};
-		executor.schedule(start, 0, TimeUnit.MILLISECONDS);
+		execute(start, 0);
 
 		final float[] buffer = new float[1024];
 		final float[] data = new float[numSensorsTmp];
@@ -415,6 +427,7 @@ public class SensorUtil {
 			e.printStackTrace();
 		}
 		executor = null;
+		executorThreadName = null;
 		applet = null;
 		deviceFactory = null;
 	}
@@ -594,11 +607,22 @@ public class SensorUtil {
 		sensor.setStepSize(step);
 		sensor.setType(type);
 	}
+	
+	private ScheduledFuture<?> execute(Runnable r, int delay) {
+		if (Thread.currentThread().getName().equals(executorThreadName)) {
+			r.run();
+			return null;
+		} else {
+			return executor.schedule(r, delay, TimeUnit.MILLISECONDS);
+		}
+	}
 
 	private void executeAndWaitCreate(Runnable r) throws CreateDeviceException {
-		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
 		try {
-			task.get();
+			ScheduledFuture<?> task = execute(r, 0);
+			if (task != null) {
+				task.get();
+			}
 		} catch (InterruptedException e) {
 			throw new CreateDeviceException("Exception creating device", e);
 		} catch (ExecutionException e) {
@@ -609,9 +633,11 @@ public class SensorUtil {
 	}
 
 	private void executeAndWaitConfigure(Runnable r) throws ConfigureDeviceException {
-		ScheduledFuture<?> task = executor.schedule(r, 0, TimeUnit.MILLISECONDS);
 		try {
-			task.get();
+			ScheduledFuture<?> task = execute(r, 0);
+			if (task != null) {
+				task.get();
+			}
 		} catch (InterruptedException e) {
 			throw new ConfigureDeviceException("Exception configuring device", e);
 		} catch (ExecutionException e) {
@@ -626,9 +652,11 @@ public class SensorUtil {
 	}
 
 	private boolean executeAndWait(final Runnable r, int delayMs) {
-		ScheduledFuture<?> task = executor.schedule(r, delayMs, TimeUnit.MILLISECONDS);
 		try {
-			task.get();
+			ScheduledFuture<?> task = execute(r, delayMs);
+			if (task != null) {
+				task.get();
+			}
 			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
