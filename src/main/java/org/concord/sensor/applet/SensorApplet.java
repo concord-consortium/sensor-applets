@@ -81,6 +81,10 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     				if (util.isActualConfigValid()) {
     					jsBridge.sensorsReady();
     				} else {
+    					// Blech, I hate notifying that things are ready, when we know they're not,
+    					// but this is easier than updating all the code that is expecting this to
+    					// be called in order to initialize themselves properly.
+    					jsBridge.sensorsReady();
     					jsBridge.notifySensorUnplugged();
     					util.reconfigureNextTime();
     				}
