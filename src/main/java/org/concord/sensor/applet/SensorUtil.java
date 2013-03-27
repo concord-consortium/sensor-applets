@@ -207,8 +207,11 @@ public class SensorUtil {
 				}
 			};
 			numErrors = 0;
-			double interval = Math.floor(actualConfig.getDataReadPeriod() * 1000);
-			collectionTask = executor.scheduleAtFixedRate(r, 10, (long) interval, TimeUnit.MILLISECONDS);
+			long interval = (long) Math.floor(actualConfig.getDataReadPeriod() * 1000);
+			if (interval <= 0) {
+				interval = 100;
+			}
+			collectionTask = executor.scheduleAtFixedRate(r, 10, interval, TimeUnit.MILLISECONDS);
 		}
 	}
 
