@@ -10,7 +10,7 @@ public class DetectionApplet extends Applet {
 	public void paint(Graphics g) {
 		g.clearRect(0, 0, getWidth(), getHeight());
 		
-		g.drawString("Loading...", 2, 14);
+		g.drawString("Loading...", (getWidth()/2)-29, (getHeight()/2)+7);
 	}
 	
 	public boolean areYouLoaded() {
