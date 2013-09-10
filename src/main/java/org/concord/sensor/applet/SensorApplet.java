@@ -67,7 +67,8 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		return util;
     }
     
-    public boolean initSensorInterface(final String listenerPath, final String deviceType, final SensorRequest[] sensors) {
+    public void initSensorInterface(final String listenerPath, final String deviceType, final SensorRequest[] sensors) {
+    	// This should be done asynchronously so we aren't hogging the Javascript thread
     	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
     		public Boolean run() {
     			try {
@@ -79,14 +80,10 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     				SensorUtil util = findOrCreateUtil(deviceType);
     				util.setupDevice(sensors);
     				if (util.isActualConfigValid()) {
-    					jsBridge.sensorsReady();
+    					return Boolean.TRUE;
     				} else {
-    					// Blech, I hate notifying that things are ready, when we know they're not,
-    					// but this is easier than updating all the code that is expecting this to
-    					// be called in order to initialize themselves properly.
-    					jsBridge.sensorsReady();
-    					jsBridge.notifySensorUnplugged();
     					util.reconfigureNextTime();
+    					return Boolean.FALSE;
     				}
     			} catch (SensorAppletException e) {
     				e.printStackTrace();
@@ -99,20 +96,17 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     				System.err.println("Caught unexpected exception...");
     				e.printStackTrace();
     				return Boolean.FALSE;
-    			}
-    			
-    			return Boolean.TRUE;
+    			}    			
     		}
     	});
-        
-		return b.booleanValue();
+    	jsBridge.initSensorInterfaceComplete(b.booleanValue());
 	}
     
     public boolean isInterfaceConnected(final String deviceType) {
     	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
     		public Boolean run() {
 				SensorUtil util = findOrCreateUtil(deviceType);
-				if (util.isCollectable()) {
+				if (util.isDeviceAttached()) {
 					return Boolean.TRUE;
 				}
     			return Boolean.FALSE;

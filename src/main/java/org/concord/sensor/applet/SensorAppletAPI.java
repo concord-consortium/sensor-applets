@@ -7,7 +7,7 @@ import org.concord.sensor.impl.SensorRequestImpl;
 
 public interface SensorAppletAPI {
 
-	public abstract boolean initSensorInterface(String listenerPath, String deviceType, SensorRequest[] sensors);
+	public abstract void initSensorInterface(String listenerPath, String deviceType, SensorRequest[] sensors);
 
 	public abstract void startCollecting();
 

@@ -64,4 +64,8 @@ public class JavascriptDataBridge {
         buf.append("]");
         return buf.toString();
     }
+
+	public void initSensorInterfaceComplete(boolean booleanValue) {
+        window.eval(handlerPath + ".initSensorInterfaceComplete(" + booleanValue + ")");
+	}
 }
