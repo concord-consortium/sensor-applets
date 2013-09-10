@@ -157,7 +157,7 @@ public class SensorUtil {
 		if (deviceIsRunning) { return; }
 
 		if (device == null) {
-			setupDevice(sensors);
+			createDevice();
 		}
 		
 		if (isDeviceAttached()) {
@@ -312,6 +312,10 @@ public class SensorUtil {
 			createDevice();
 		}
 
+		if(!isDeviceAttached()){
+			throw new CreateDeviceException("Device is not attached");
+		}
+
 		configureDevice(sensors, true);
 	}
 
@@ -337,9 +341,9 @@ public class SensorUtil {
 	}
 
 	public boolean isDeviceAttached() {
-		if (device != null) {
-			Runnable r = new Runnable() {
-				public void run() {
+		Runnable r = new Runnable() {
+			public void run() {
+				if (device != null) {
 					logger.fine("Checking attached: " + Thread.currentThread().getName());
 					// TODO Auto-generated method stub
 					deviceIsAttached = device.isAttached();
@@ -352,20 +356,19 @@ public class SensorUtil {
 							deviceIsAttached = false;
 						}
 					}
+				} else {
+					logger.info("Device was null. Trying to open...");
+					try {
+						createDevice();
+						deviceIsAttached = isDeviceAttached();
+					} catch (SensorAppletException e) {
+						deviceIsAttached = false;
+					}
 				}
-			};
-
-			executeAndWait(r);
-		} else {
-			logger.info("Device was null. Trying to open...");
-			try {
-				setupDevice(sensors);
-				deviceIsAttached = isDeviceAttached();
-			} catch (SensorAppletException e) {
-				deviceIsAttached = false;
 			}
+		};
 
-		}
+		executeAndWait(r);
 		return deviceIsAttached;
 	}
 
@@ -376,7 +379,7 @@ public class SensorUtil {
 		}
 		try {
 			if (device == null) {
-				setupDevice(null);
+				createDevice();
 			}
 			if (isDeviceAttached()) {
 				logger.fine("Device reported as attached.");
