@@ -67,6 +67,7 @@ public class SensorUtil {
 	}
 
 	public void initSensorInterface(final SensorRequest[] sensors, final JavascriptDataBridge jsBridge) {
+		System.out.println("initSensorInterface called with sensors: " + (sensors == null? "null" : sensors.length));
 		executor.schedule(new Runnable() {
 			public void run() {
 				boolean success = false;
@@ -174,16 +175,14 @@ public class SensorUtil {
 		if (isDeviceAttached()) {
 			configureDevice(sensors, true);
 	
-			Runnable start = new Runnable() {
-				public void run() {
-					deviceIsRunning = device.start();
-					System.out.println("started device");
-				}
-			};
-			execute(start, 0);
-	
+			if (!actualConfig.isValid()) {
+				// we should send a notification here that something went wrong
+				System.err.println("actualConfig is not valid just before starting device");
+				return;
+			}
+
 			final float[] data = new float[1024];
-			Runnable r = new Runnable() {
+			final Runnable r = new Runnable() {
 				public void run() {
 					try {
 						int numSamples = device.read(data, 0, sensors.length, null);
@@ -218,7 +217,23 @@ public class SensorUtil {
 			if (interval <= 0) {
 				interval = 100;
 			}
-			collectionTask = executor.scheduleAtFixedRate(r, 10, interval, TimeUnit.MILLISECONDS);
+			final long adjustedInterval = interval;
+
+			Runnable start = new Runnable() {
+				public void run() {
+					deviceIsRunning = device.start();
+					if(deviceIsRunning) {
+						System.out.println("started device");
+						collectionTask = executor.scheduleAtFixedRate(r, 10, adjustedInterval, TimeUnit.MILLISECONDS);
+					} else {
+						// we should send a notification here that something went wrong
+						System.err.println("error starting the device");
+					}
+
+				}
+			};
+			execute(start, 0);
+
 		}
 	}
 
@@ -693,21 +708,41 @@ public class SensorUtil {
 		}
 		if (actualConfig == null) { return false; }
 		if (sensors == null) { return true; }
+		if (actualConfig.isValid()){
+			return true;
+		}
+		System.err.println("actualConfig is not valid (the attached sensors don't include the requested sensors)");
+
 		SensorConfig[] actuals = actualConfig.getSensorConfigs();
-		if (actuals == null || actuals.length != sensors.length) { return false; }
+		if (actuals == null) {
+			System.err.println("  there are no attached sensors");
+			return false;
+		}
+
+		if (sensors == null) {
+			System.err.println("  there are no requested sensors");
+			return false;
+		}
+
+		// Comparing the number of the sensors attached and the number requested isn't important
+		// there could be a temperature and light sensor attached and a temperatue sensor is requested
+		// this is still a valid configuration.
+
 		int[] actualTypes = new int[actuals.length];
-		int[] reqTypes = new int[sensors.length];
 		for (int i = 0; i < actuals.length; i++) {
 			int aType = actuals[i].getType();
 			actualTypes[i] = aType;
+		}
+
+		int[] reqTypes = new int[sensors.length];
+		for (int i = 0; i < sensors.length; i++) {
 			int rType = sensors[i].getType();
 			reqTypes[i] = rType;
-			System.err.println("Recording types: " + aType + ", " + rType);
 		}
-		Arrays.sort(actualTypes);
-		Arrays.sort(reqTypes);
-		System.err.println("Comparing sensor arrays: " + Arrays.toString(actualTypes) + ", " + Arrays.toString(reqTypes));
-		return Arrays.equals(actualTypes, reqTypes);
+
+		System.err.println("  requested Sensors: " + Arrays.toString(reqTypes));
+		System.err.println("  attached  Sensors:  " + Arrays.toString(actualTypes));
+		return false;
 	}
 
 	private boolean reconfigureNextTime = false;
