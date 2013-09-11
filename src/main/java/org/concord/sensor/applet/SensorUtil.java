@@ -155,7 +155,17 @@ public class SensorUtil {
 
 	private int numErrors = 0;
 	public void startDevice(final JavascriptDataBridge jsBridge) throws CreateDeviceException, ConfigureDeviceException {
-		if (deviceIsRunning) { return; }
+		if (deviceIsRunning) {
+			// we should send a notification here that something went wrong
+			System.err.println("statDevice called while a device is running");
+            return;
+        }
+
+		if (collectionTask != null) {
+			// we should send a notification here that something went wrong
+			System.err.println("startDevice called while a collectionTask is still around");
+			return;
+		}
 
 		if (device == null) {
 			createDevice();
