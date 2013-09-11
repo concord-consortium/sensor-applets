@@ -584,7 +584,10 @@ public class SensorUtil {
 			configureSensorRequest(sensor, -2, 0.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_DISTANCE);
 		} else if (type.equals("co2") || type.equals("carbon dioxide")) {
 			configureSensorRequest(sensor, 1, 0.0f, 5000.0f, 0, 20.0f, SensorConfig.QUANTITY_CO2_GAS);
-		} else if (type.equals("force") || type.equals("force 5n")) {
+		} else if (type.equals("force")) {
+			// this will accept both the 10 Newton and 50 Newton switches on the vernier force sensor
+			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
+		} else if (type.equals("force 5n")) {
 			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.01f, SensorConfig.QUANTITY_FORCE);
 		} else if (type.equals("force 50n")) {
 			configureSensorRequest(sensor, -1, -40.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
