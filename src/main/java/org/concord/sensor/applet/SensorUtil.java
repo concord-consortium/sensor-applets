@@ -40,7 +40,6 @@ public class SensorUtil {
 	private boolean deviceIsAttached = false;
 	private boolean deviceIsCollectable = false;
 	private ScheduledExecutorService executor;
-	private ScheduledExecutorService jsBridgeExecutor;
 	private ScheduledFuture<?> collectionTask;
 
 	private String deviceType;
@@ -54,7 +53,6 @@ public class SensorUtil {
 		this.deviceType = deviceType;
 		this.deviceFactory = new JavaDeviceFactory();
 		this.executor = Executors.newSingleThreadScheduledExecutor();
-		this.jsBridgeExecutor = Executors.newSingleThreadScheduledExecutor();
 		ScheduledFuture<?> task = executor.schedule(new Runnable() {
 			public void run() {
 				executorThreadName = Thread.currentThread().getName();
@@ -66,6 +64,27 @@ public class SensorUtil {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public void initSensorInterface(final SensorRequest[] sensors, final JavascriptDataBridge jsBridge) {
+		executor.schedule(new Runnable() {
+			public void run() {
+				boolean success = false;
+				try {
+					setupDevice(sensors);
+					if (isActualConfigValid()) {
+						success = true;
+					} else {
+						reconfigureNextTime();
+						success = false;
+					}
+				} catch (Throwable e) {
+					e.printStackTrace();
+					success = false;
+				}
+				jsBridge.initSensorInterfaceComplete(success);
+			}
+		}, 0, TimeUnit.MILLISECONDS);
 	}
 
 	public boolean isRunning() {
@@ -80,42 +99,24 @@ public class SensorUtil {
 			if (isDeviceAttached()) {
 				ExperimentConfig config = getDeviceConfig();
 				if (config == null) {
-					notifyDeviceUnplugged(jsBridge);
+					jsBridge.notifyDeviceUnplugged();
 					return;
 				}
 				if (config.getSensorConfigs() == null || config.getSensorConfigs().length != sensors.length) {
-					notifySensorUnplugged(jsBridge);
+					jsBridge.notifySensorUnplugged();
 					return;
 				}
 				// TODO See if we can figure out which sensor(s) got unplugged
 				System.out.println("Somehow we didn't detect a connection error!");
 				configureDevice(sensors, true);
 			} else {
-				notifyDeviceUnplugged(jsBridge);
+				jsBridge.notifyDeviceUnplugged();
 			}
 		} catch (ConfigureDeviceException e) {
-			notifyDeviceUnplugged(jsBridge);
+			jsBridge.notifyDeviceUnplugged();
 		}
 	}
 	
-	private void notifyDeviceUnplugged(final JavascriptDataBridge jsBridge) {
-		jsBridgeExecutor.schedule(new Runnable() {
-			public void run() {
-				System.err.println("Notifying device was unplugged.");
-				jsBridge.notifyDeviceUnplugged();
-			}
-		}, 0, TimeUnit.MILLISECONDS);
-	}
-	
-	private void notifySensorUnplugged(final JavascriptDataBridge jsBridge) {
-		jsBridgeExecutor.schedule(new Runnable() {
-			public void run() {
-				System.err.println("Notifying sensor was unplugged.");
-				jsBridge.notifySensorUnplugged();
-			}
-		}, 0, TimeUnit.MILLISECONDS);
-	}
-
 	public void stopDevice() {
 		if (device != null && deviceIsRunning) {
 			if (collectionTask != null && !collectionTask.isDone()) {
@@ -175,15 +176,11 @@ public class SensorUtil {
 			Runnable r = new Runnable() {
 				public void run() {
 					try {
-						final int numSamples = device.read(data, 0, sensors.length, null);
+						int numSamples = device.read(data, 0, sensors.length, null);
 						if (numSamples > 0) {
-							final float[] dataCopy = new float[numSamples * sensors.length];
+							float[] dataCopy = new float[numSamples * sensors.length];
 							System.arraycopy(data, 0, dataCopy, 0, numSamples * sensors.length);
-							jsBridgeExecutor.schedule(new Runnable() {
-								public void run() {
-									jsBridge.handleData(numSamples, sensors.length, dataCopy);
-								}
-							}, 0, TimeUnit.MILLISECONDS);
+							jsBridge.handleData(numSamples, sensors.length, dataCopy);
 
 							numErrors = 0;
 						} else {

@@ -68,9 +68,9 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     }
     
     public void initSensorInterface(final String listenerPath, final String deviceType, final SensorRequest[] sensors) {
-    	// This should be done asynchronously so we aren't hogging the Javascript thread
-    	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-    		public Boolean run() {
+    	// the sensor part of this is done asynchronously so we don't hog the javascript thread
+    	AccessController.doPrivileged(new PrivilegedAction<Void>() {
+    		public Void run() {
     			try {
     				// Create the data bridge
     				logger.info("Setting things up: " + listenerPath + ", " + deviceType + ", " + sensors);
@@ -78,28 +78,15 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 
     				
     				SensorUtil util = findOrCreateUtil(deviceType);
-    				util.setupDevice(sensors);
-    				if (util.isActualConfigValid()) {
-    					return Boolean.TRUE;
-    				} else {
-    					util.reconfigureNextTime();
-    					return Boolean.FALSE;
-    				}
-    			} catch (SensorAppletException e) {
-    				e.printStackTrace();
-    				return Boolean.FALSE;
-    			} catch (RuntimeException re) {
+    				util.initSensorInterface(sensors, jsBridge);
+    			} catch (Throwable t) {
     				System.err.println("Caught unexpected runtime exception...");
-    				re.printStackTrace();
-    				return Boolean.FALSE;
-    			} catch (Exception e) {
-    				System.err.println("Caught unexpected exception...");
-    				e.printStackTrace();
-    				return Boolean.FALSE;
-    			}    			
+    				t.printStackTrace();
+    				jsBridge.initSensorInterfaceComplete(false);
+    			}
+    			return null;
     		}
     	});
-    	jsBridge.initSensorInterfaceComplete(b.booleanValue());
 	}
     
     public boolean isInterfaceConnected(final String deviceType) {
