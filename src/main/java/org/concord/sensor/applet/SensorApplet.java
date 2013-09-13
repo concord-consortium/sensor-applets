@@ -8,6 +8,8 @@ import java.util.logging.Logger;
 
 import javax.swing.JApplet;
 
+import netscape.javascript.JSObject;
+
 import org.concord.sensor.ExperimentConfig;
 import org.concord.sensor.SensorConfig;
 import org.concord.sensor.SensorRequest;
@@ -47,6 +49,17 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
         READY, RUNNING, STOPPED, UNKNOWN
     }
     
+	@Override
+	public void init() {
+		String codeToEval = getParameter("evalOnInit");
+		if (codeToEval == null || codeToEval.length() == 0){
+			return;
+		}
+	    JSObject window = JSObject.getWindow(this);
+	    System.out.println("SensorApplet running evalOnInit code");
+	    window.eval(codeToEval);
+	}
+
     @Override
     public void destroy() {
     	for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {

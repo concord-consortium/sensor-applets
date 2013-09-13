@@ -3,6 +3,8 @@ package org.concord.sensor.applet;
 import java.applet.Applet;
 import java.awt.Graphics;
 
+import netscape.javascript.JSObject;
+
 public class DetectionApplet extends Applet {
 	private static final long serialVersionUID = 1L;
 	
@@ -17,4 +19,14 @@ public class DetectionApplet extends Applet {
 		return true;
 	}
 
+	@Override
+	public void init() {
+		String codeToEval = getParameter("evalOnInit");
+		if (codeToEval == null || codeToEval.length() == 0){
+			return;
+		}
+	    JSObject window = JSObject.getWindow(this);
+	    System.out.println("DectionApplet running evalOnInit code");
+	    window.eval(codeToEval);
+	}
 }
