@@ -7,6 +7,7 @@ import netscape.javascript.JSObject;
 
 public class DetectionApplet extends Applet {
 	private static final long serialVersionUID = 1L;
+	private boolean notifiedJavascript = false;
 	
 	@Override
 	public void paint(Graphics g) {
@@ -20,7 +21,14 @@ public class DetectionApplet extends Applet {
 	}
 
 	@Override
-	public void init() {
+	public void start() {
+		// we only want to notify javascript once
+		// previously this code was in the init method which would only run once
+		// but that caused problems sometimes on IE.
+		if (notifiedJavascript) {
+			return;
+		}
+		notifiedJavascript = true;
 		String codeToEval = getParameter("evalOnInit");
 		if (codeToEval == null || codeToEval.length() == 0){
 			return;
