@@ -88,4 +88,8 @@ public class JavascriptDataBridge {
         return buf.toString();
     }
 
+	public void destroy() {
+		jsBridgeExecutor.shutdownNow();
+	}
+
 }

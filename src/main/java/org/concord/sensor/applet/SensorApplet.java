@@ -75,6 +75,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     		SensorUtil util = entry.getValue();
 		    util.destroy();
     	}
+    	jsBridge.destroy();
     	sensorUtils.clear();
     	super.destroy();
     }

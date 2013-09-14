@@ -446,7 +446,7 @@ public class SensorUtil {
 
 	public void destroy() {
 		tearDownDevice();
-		executor.shutdown();
+		executor.shutdownNow();
 		try {
 			executor.awaitTermination(5, TimeUnit.SECONDS);
 			System.err.println("Shutdown completed. All tasks terminated: " + executor.isTerminated());
