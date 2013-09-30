@@ -91,5 +91,37 @@ public class JavascriptDataBridge {
 	public void destroy() {
 		jsBridgeExecutor.shutdownNow();
 	}
+	
+	public String asArgs(float[] arr) {
+		return arrayAsString(arr, arr.length, 1);
+	}
+	
+	public void handleCallback(final String idx, final String[] args) {
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+		        StringBuffer buf = new StringBuffer();
+		        buf.append(handlerPath);
+		        buf.append(".handleCallback(");
+		        buf.append(idx);
+		        if (args != null && args.length > 0) {
+			        buf.append(", [");
+			        for (int i = 0; i < args.length; i++) {
+			            buf.append(args[i]);
+			            if (i != args.length-1) {
+			                buf.append(",");
+			            }
+			        }
+			        buf.append("]");
+		        }
+		        buf.append(");");
+		        try {
+		            window.eval(buf.toString());
+		        } catch (JSException e) {
+		            System.err.println("Javascript error: " + e.getMessage());
+		            e.printStackTrace();
+		        }
+			}
+		}, 0, TimeUnit.MILLISECONDS);
+	}
 
 }

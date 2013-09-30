@@ -1,5 +1,6 @@
 package org.concord.sensor.applet;
 
+import java.awt.EventQueue;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.HashMap;
@@ -46,6 +47,10 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 	private HashMap<String, SensorUtil> sensorUtils = new HashMap<String, SensorUtil>();
 
 	private boolean notifiedJavascript;
+	
+    private ExperimentConfig latestExperimentConfig = null;
+    
+    private SensorConfig[] latestSensorConfig = null;
     
     public enum State {
         READY, RUNNING, STOPPED, UNKNOWN
@@ -91,80 +96,126 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     }
     
     public void initSensorInterface(final String listenerPath, final String deviceType, final SensorRequest[] sensors) {
-    	// the sensor part of this is done asynchronously so we don't hog the javascript thread
-    	AccessController.doPrivileged(new PrivilegedAction<Void>() {
-    		public Void run() {
-    			try {
-    				// Create the data bridge
-    				logger.info("Setting things up: " + listenerPath + ", " + deviceType + ", " + sensors);
-    				jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
+    	EventQueue.invokeLater(new Runnable() {
+			public void run() {
+		    	AccessController.doPrivileged(new PrivilegedAction<Void>() {
+		    		public Void run() {
+		    			try {
+		    				// Create the data bridge
+		    				logger.info("Setting things up: " + listenerPath + ", " + deviceType + ", " + sensors);
+		    				jsBridge = new JavascriptDataBridge(listenerPath, SensorApplet.this);
 
-    				
-    				SensorUtil util = findOrCreateUtil(deviceType);
-    				util.initSensorInterface(sensors, jsBridge);
-    			} catch (Throwable t) {
-    				System.err.println("Caught unexpected runtime exception...");
-    				t.printStackTrace();
-    				jsBridge.initSensorInterfaceComplete(false);
-    			}
-    			return null;
-    		}
+		    				
+		    				SensorUtil util = findOrCreateUtil(deviceType);
+		    				util.initSensorInterface(sensors, jsBridge);
+		    			} catch (Throwable t) {
+		    				System.err.println("Caught unexpected runtime exception...");
+		    				t.printStackTrace();
+		    				jsBridge.initSensorInterfaceComplete(false);
+		    			}
+		    			return null;
+		    		}
+		    	});
+			}
     	});
 	}
     
-    public boolean isInterfaceConnected(final String deviceType) {
-    	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-    		public Boolean run() {
-				SensorUtil util = findOrCreateUtil(deviceType);
-				if (util.isDeviceAttached()) {
-					return Boolean.TRUE;
-				}
-    			return Boolean.FALSE;
-    		}
+    // XXX
+    public void isInterfaceConnected(final String deviceType, final String callbackIndex) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+		    	Boolean b = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+		    		public Boolean run() {
+						SensorUtil util = findOrCreateUtil(deviceType);
+						if (util.isDeviceAttached()) {
+							return Boolean.TRUE;
+						}
+		    			return Boolean.FALSE;
+		    		}
+				});
+		    	
+		    	jsBridge.handleCallback(callbackIndex, new String[] {b.toString()});
+			}
 		});
-    	return b.booleanValue();
     }
     
-    public ExperimentConfig getDeviceConfiguration(final String deviceType) {
-    	ExperimentConfig c = AccessController.doPrivileged(new PrivilegedAction<ExperimentConfig>() {
-    		public ExperimentConfig run() {
-				SensorUtil util = findOrCreateUtil(deviceType);
-				try {
-					return util.getDeviceConfig();
-				} catch (ConfigureDeviceException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					return null;
-				}
+    public ExperimentConfig getCachedDeviceConfiguration() {
+    	return latestExperimentConfig;
+    }
+    
+    public void getDeviceConfiguration(final String deviceType, final String callbackIndex) {
+    	EventQueue.invokeLater(new Runnable() {
+    		public void run() {
+    	    	ExperimentConfig c = AccessController.doPrivileged(new PrivilegedAction<ExperimentConfig>() {
+    	    		public ExperimentConfig run() {
+    					SensorUtil util = findOrCreateUtil(deviceType);
+    					try {
+    						return util.getDeviceConfig();
+    					} catch (ConfigureDeviceException e) {
+    						e.printStackTrace();
+    						return null;
+    					}
+    	    		}
+    			});
+    	    	latestExperimentConfig = c;
+    	    	
+    	    	jsBridge.handleCallback(callbackIndex, null);
     		}
+    	});
+    }
+    
+    public SensorConfig[] getCachedAttachedSensors() {
+    	return latestSensorConfig;
+    }
+    
+    // XXX
+    public void getAttachedSensors(final String deviceType, final String callbackIndex) {
+    	EventQueue.invokeLater(new Runnable() {
+			public void run() {
+		    	SensorConfig[] c = AccessController.doPrivileged(new PrivilegedAction<SensorConfig[]>() {
+		    		public SensorConfig[] run() {
+						SensorUtil util = findOrCreateUtil(deviceType);
+						try {
+							ExperimentConfig config = util.getDeviceConfig();
+							if (config != null) {
+								return config.getSensorConfigs();
+							}
+						} catch (ConfigureDeviceException e) {
+							e.printStackTrace();
+						}
+						return null;
+		    		}
+				});
+    	    	latestSensorConfig = c;
+    	    	
+    	    	jsBridge.handleCallback(callbackIndex, null);
+			}
 		});
-    	return c;
     }
     
-    public SensorConfig[] getAttachedSensors(final String deviceType) {
-    	SensorConfig[] c = AccessController.doPrivileged(new PrivilegedAction<SensorConfig[]>() {
-    		public SensorConfig[] run() {
-				SensorUtil util = findOrCreateUtil(deviceType);
-				try {
-					ExperimentConfig config = util.getDeviceConfig();
-					if (config != null) {
-						return config.getSensorConfigs();
-					}
-				} catch (ConfigureDeviceException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				return null;
-    		}
+    // XXX
+    public void getAttachedSensorsValues(final String deviceType, final String callbackIndex) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				float[] values = getSensorsValues(deviceType, true);
+				String args = jsBridge.asArgs(values);
+				jsBridge.handleCallback(callbackIndex, new String[] {args});
+			}
 		});
-    	return c;
     }
     
-    public float[] getAttachedSensorsValues(String deviceType) {
-    	return getSensorsValues(deviceType, true);
+    // XXX
+    public void getConfiguredSensorsValues(final String deviceType, final String callbackIndex) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				float[] values = getConfiguredSensorsValues(deviceType);
+				String args = jsBridge.asArgs(values);
+				jsBridge.handleCallback(callbackIndex, new String[] {args});
+			}
+		});
     }
     
-    public float[] getConfiguredSensorsValues(String deviceType) {
+    private float[] getConfiguredSensorsValues(String deviceType) {
     	SensorUtil util = findOrCreateUtil(deviceType);
 		if (util.isActualConfigValid()) {
 	    	return getSensorsValues(deviceType, false);
@@ -182,7 +233,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 				try {
 					return util.readSingleValue(jsBridge, allSensors);
 				} catch (SensorAppletException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				return null;
@@ -193,20 +243,24 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     }
 
 	public void stopCollecting() {
-		AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-			public Boolean run() {
-				for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
-					try {
-						SensorUtil util = entry.getValue();
-						if (util.isRunning()) {
-							util.stopDevice();
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+					public Boolean run() {
+						for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
+							try {
+								SensorUtil util = entry.getValue();
+								if (util.isRunning()) {
+									util.stopDevice();
+								}
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
 						}
-					} catch (Exception e) {
-						e.printStackTrace();
+		
+						return Boolean.TRUE;
 					}
-				}
-
-				return Boolean.TRUE;
+				});
 			}
 		});
 	}
@@ -214,27 +268,33 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     public void startCollecting() {
 		stopCollecting();
 		
-		AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-			public Boolean run() {
-				for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
-					SensorUtil util = entry.getValue();
-					if (util.isCollectable()) {
-						try {
-							util.startDevice(jsBridge);
-						} catch (Exception e) {
-							e.printStackTrace();
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+					public Boolean run() {
+						for (Map.Entry<String, SensorUtil> entry : sensorUtils.entrySet()) {
+							SensorUtil util = entry.getValue();
+							if (util.isCollectable()) {
+								try {
+									util.startDevice(jsBridge);
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+							}
 						}
+						return Boolean.TRUE;
 					}
-				}
-				return Boolean.TRUE;
+				});
 			}
 		});
     }
     
+    // Doesn't need to be async
     public SensorRequestImpl getSensorRequest(String sensorType) {
     	return SensorUtil.getSensorRequest(sensorType);
     }
     
+    // Doesn't need to be async
     public String getTypeConstantName(int type) {
     	return SensorUtilJava.getTypeConstantName(type).toLowerCase();
     }
