@@ -120,7 +120,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	});
 	}
     
-    // XXX
     public void isInterfaceConnected(final String deviceType, final String callbackIndex) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
@@ -168,7 +167,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	return latestSensorConfig;
     }
     
-    // XXX
     public void getAttachedSensors(final String deviceType, final String callbackIndex) {
     	EventQueue.invokeLater(new Runnable() {
 			public void run() {
@@ -193,7 +191,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		});
     }
     
-    // XXX
     public void getAttachedSensorsValues(final String deviceType, final String callbackIndex) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
@@ -204,7 +201,6 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		});
     }
     
-    // XXX
     public void getConfiguredSensorsValues(final String deviceType, final String callbackIndex) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
