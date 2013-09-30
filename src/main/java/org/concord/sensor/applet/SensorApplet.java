@@ -180,7 +180,7 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 							if (config != null) {
 								return config.getSensorConfigs();
 							}
-						} catch (ConfigureDeviceException e) {
+						} catch (Exception e) {
 							e.printStackTrace();
 						}
 						return null;
