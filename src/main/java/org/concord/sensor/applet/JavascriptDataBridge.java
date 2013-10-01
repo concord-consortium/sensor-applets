@@ -38,11 +38,7 @@ public class JavascriptDataBridge {
     }
     
 	public void initSensorInterfaceComplete(final boolean booleanValue) {
-		jsBridgeExecutor.schedule(new Runnable() {
-			public void run() {
-		        window.eval(handlerPath + ".initSensorInterfaceComplete(" + booleanValue + ")");
-			}
-		}, 0, TimeUnit.MILLISECONDS);
+		handleCallback("\"initSensorInterfaceComplete\"", new String[] { Boolean.toString(booleanValue) });
 	}
 
 	// We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
