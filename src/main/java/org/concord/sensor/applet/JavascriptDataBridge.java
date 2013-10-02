@@ -1,6 +1,9 @@
 package org.concord.sensor.applet;
 
 import java.applet.Applet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
@@ -8,33 +11,49 @@ import netscape.javascript.JSObject;
 public class JavascriptDataBridge {
     private JSObject window;
     private String handlerPath;
-    
+	private ScheduledExecutorService jsBridgeExecutor;
+
     public JavascriptDataBridge(String javascriptObjectPath, Applet applet) {
         window = JSObject.getWindow(applet);
         handlerPath = javascriptObjectPath;
-    }
-
-    public void sensorsReady() {
-        window.eval(handlerPath + ".sensorsReady();");
+		jsBridgeExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
     public void notifyDeviceUnplugged() {
-        window.eval(handlerPath + ".deviceUnplugged()");
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+				System.err.println("Notifying device was unplugged.");
+		        window.eval(handlerPath + ".deviceUnplugged()");
+			}
+		}, 0, TimeUnit.MILLISECONDS);
     }
 
     public void notifySensorUnplugged() {
-        window.eval(handlerPath + ".sensorUnplugged()");
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+				System.err.println("Notifying sensor was unplugged.");
+		        window.eval(handlerPath + ".sensorUnplugged()");
+			}
+		}, 0, TimeUnit.MILLISECONDS);
     }
     
-    // We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
-    public void handleData(int numSamples, int numSensors, float[] data) {
-        String evalString = getJsEventCall(numSamples, numSensors, data);
-        try {
-            window.eval(evalString);
-        } catch (JSException e) {
-            System.err.println("Javascript error: " + e.getMessage());
-            e.printStackTrace();
-        }
+	public void initSensorInterfaceComplete(final boolean booleanValue) {
+		handleCallback("\"initSensorInterfaceComplete\"", new String[] { Boolean.toString(booleanValue) });
+	}
+
+	// We're using JSObject.eval() instead of using JSObject.call() because Firefox has problems with call()
+    public void handleData(final int numSamples, final int numSensors, final float[] data) {
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+		        String evalString = getJsEventCall(numSamples, numSensors, data);
+		        try {
+		            window.eval(evalString);
+		        } catch (JSException e) {
+		            System.err.println("Javascript error: " + e.getMessage());
+		            e.printStackTrace();
+		        }
+			}
+		}, 0, TimeUnit.MILLISECONDS);
     }
 
     private String getJsEventCall(int numSamples, int numSensors, float[] data) {
@@ -64,4 +83,41 @@ public class JavascriptDataBridge {
         buf.append("]");
         return buf.toString();
     }
+
+	public void destroy() {
+		jsBridgeExecutor.shutdownNow();
+	}
+	
+	public String asArgs(float[] arr) {
+		return arrayAsString(arr, arr.length, 1);
+	}
+	
+	public void handleCallback(final String idx, final String[] args) {
+		jsBridgeExecutor.schedule(new Runnable() {
+			public void run() {
+		        StringBuffer buf = new StringBuffer();
+		        buf.append(handlerPath);
+		        buf.append(".handleCallback(");
+		        buf.append(idx);
+		        if (args != null && args.length > 0) {
+			        buf.append(", [");
+			        for (int i = 0; i < args.length; i++) {
+			            buf.append(args[i]);
+			            if (i != args.length-1) {
+			                buf.append(",");
+			            }
+			        }
+			        buf.append("]");
+		        }
+		        buf.append(");");
+		        try {
+		            window.eval(buf.toString());
+		        } catch (JSException e) {
+		            System.err.println("Javascript error: " + e.getMessage());
+		            e.printStackTrace();
+		        }
+			}
+		}, 0, TimeUnit.MILLISECONDS);
+	}
+
 }

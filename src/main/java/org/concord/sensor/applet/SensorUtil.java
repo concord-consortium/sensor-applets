@@ -40,7 +40,6 @@ public class SensorUtil {
 	private boolean deviceIsAttached = false;
 	private boolean deviceIsCollectable = false;
 	private ScheduledExecutorService executor;
-	private ScheduledExecutorService jsBridgeExecutor;
 	private ScheduledFuture<?> collectionTask;
 
 	private String deviceType;
@@ -54,7 +53,6 @@ public class SensorUtil {
 		this.deviceType = deviceType;
 		this.deviceFactory = new JavaDeviceFactory();
 		this.executor = Executors.newSingleThreadScheduledExecutor();
-		this.jsBridgeExecutor = Executors.newSingleThreadScheduledExecutor();
 		ScheduledFuture<?> task = executor.schedule(new Runnable() {
 			public void run() {
 				executorThreadName = Thread.currentThread().getName();
@@ -66,6 +64,28 @@ public class SensorUtil {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public void initSensorInterface(final SensorRequest[] sensors, final JavascriptDataBridge jsBridge) {
+		System.out.println("initSensorInterface called with sensors: " + (sensors == null? "null" : sensors.length));
+		executor.schedule(new Runnable() {
+			public void run() {
+				boolean success = false;
+				try {
+					setupDevice(sensors);
+					if (isActualConfigValid()) {
+						success = true;
+					} else {
+						reconfigureNextTime();
+						success = false;
+					}
+				} catch (Throwable e) {
+					e.printStackTrace();
+					success = false;
+				}
+				jsBridge.initSensorInterfaceComplete(success);
+			}
+		}, 0, TimeUnit.MILLISECONDS);
 	}
 
 	public boolean isRunning() {
@@ -80,42 +100,24 @@ public class SensorUtil {
 			if (isDeviceAttached()) {
 				ExperimentConfig config = getDeviceConfig();
 				if (config == null) {
-					notifyDeviceUnplugged(jsBridge);
+					jsBridge.notifyDeviceUnplugged();
 					return;
 				}
 				if (config.getSensorConfigs() == null || config.getSensorConfigs().length != sensors.length) {
-					notifySensorUnplugged(jsBridge);
+					jsBridge.notifySensorUnplugged();
 					return;
 				}
 				// TODO See if we can figure out which sensor(s) got unplugged
 				System.out.println("Somehow we didn't detect a connection error!");
 				configureDevice(sensors, true);
 			} else {
-				notifyDeviceUnplugged(jsBridge);
+				jsBridge.notifyDeviceUnplugged();
 			}
 		} catch (ConfigureDeviceException e) {
-			notifyDeviceUnplugged(jsBridge);
+			jsBridge.notifyDeviceUnplugged();
 		}
 	}
 	
-	private void notifyDeviceUnplugged(final JavascriptDataBridge jsBridge) {
-		jsBridgeExecutor.schedule(new Runnable() {
-			public void run() {
-				System.err.println("Notifying device was unplugged.");
-				jsBridge.notifyDeviceUnplugged();
-			}
-		}, 0, TimeUnit.MILLISECONDS);
-	}
-	
-	private void notifySensorUnplugged(final JavascriptDataBridge jsBridge) {
-		jsBridgeExecutor.schedule(new Runnable() {
-			public void run() {
-				System.err.println("Notifying sensor was unplugged.");
-				jsBridge.notifySensorUnplugged();
-			}
-		}, 0, TimeUnit.MILLISECONDS);
-	}
-
 	public void stopDevice() {
 		if (device != null && deviceIsRunning) {
 			if (collectionTask != null && !collectionTask.isDone()) {
@@ -154,36 +156,40 @@ public class SensorUtil {
 
 	private int numErrors = 0;
 	public void startDevice(final JavascriptDataBridge jsBridge) throws CreateDeviceException, ConfigureDeviceException {
-		if (deviceIsRunning) { return; }
+		if (deviceIsRunning) {
+			// we should send a notification here that something went wrong
+			System.err.println("statDevice called while a device is running");
+            return;
+        }
+
+		if (collectionTask != null) {
+			// we should send a notification here that something went wrong
+			System.err.println("startDevice called while a collectionTask is still around");
+			return;
+		}
 
 		if (device == null) {
-			setupDevice(sensors);
+			createDevice();
 		}
 		
 		if (isDeviceAttached()) {
 			configureDevice(sensors, true);
 	
-			Runnable start = new Runnable() {
-				public void run() {
-					deviceIsRunning = device.start();
-					System.out.println("started device");
-				}
-			};
-			execute(start, 0);
-	
+			if (!actualConfig.isValid()) {
+				// we should send a notification here that something went wrong
+				System.err.println("actualConfig is not valid just before starting device");
+				return;
+			}
+
 			final float[] data = new float[1024];
-			Runnable r = new Runnable() {
+			final Runnable r = new Runnable() {
 				public void run() {
 					try {
-						final int numSamples = device.read(data, 0, sensors.length, null);
+						int numSamples = device.read(data, 0, sensors.length, null);
 						if (numSamples > 0) {
-							final float[] dataCopy = new float[numSamples * sensors.length];
+							float[] dataCopy = new float[numSamples * sensors.length];
 							System.arraycopy(data, 0, dataCopy, 0, numSamples * sensors.length);
-							jsBridgeExecutor.schedule(new Runnable() {
-								public void run() {
-									jsBridge.handleData(numSamples, sensors.length, dataCopy);
-								}
-							}, 0, TimeUnit.MILLISECONDS);
+							jsBridge.handleData(numSamples, sensors.length, dataCopy);
 
 							numErrors = 0;
 						} else {
@@ -211,7 +217,23 @@ public class SensorUtil {
 			if (interval <= 0) {
 				interval = 100;
 			}
-			collectionTask = executor.scheduleAtFixedRate(r, 10, interval, TimeUnit.MILLISECONDS);
+			final long adjustedInterval = interval;
+
+			Runnable start = new Runnable() {
+				public void run() {
+					deviceIsRunning = device.start();
+					if(deviceIsRunning) {
+						System.out.println("started device");
+						collectionTask = executor.scheduleAtFixedRate(r, 10, adjustedInterval, TimeUnit.MILLISECONDS);
+					} else {
+						// we should send a notification here that something went wrong
+						System.err.println("error starting the device");
+					}
+
+				}
+			};
+			execute(start, 0);
+
 		}
 	}
 
@@ -312,6 +334,10 @@ public class SensorUtil {
 			createDevice();
 		}
 
+		if(!isDeviceAttached()){
+			throw new CreateDeviceException("Device is not attached");
+		}
+
 		configureDevice(sensors, true);
 	}
 
@@ -337,9 +363,9 @@ public class SensorUtil {
 	}
 
 	public boolean isDeviceAttached() {
-		if (device != null) {
-			Runnable r = new Runnable() {
-				public void run() {
+		Runnable r = new Runnable() {
+			public void run() {
+				if (device != null) {
 					logger.fine("Checking attached: " + Thread.currentThread().getName());
 					// TODO Auto-generated method stub
 					deviceIsAttached = device.isAttached();
@@ -352,20 +378,19 @@ public class SensorUtil {
 							deviceIsAttached = false;
 						}
 					}
+				} else {
+					logger.info("Device was null. Trying to open...");
+					try {
+						createDevice();
+						deviceIsAttached = isDeviceAttached();
+					} catch (SensorAppletException e) {
+						deviceIsAttached = false;
+					}
 				}
-			};
-
-			executeAndWait(r);
-		} else {
-			logger.info("Device was null. Trying to open...");
-			try {
-				setupDevice(sensors);
-				deviceIsAttached = isDeviceAttached();
-			} catch (SensorAppletException e) {
-				deviceIsAttached = false;
 			}
+		};
 
-		}
+		executeAndWait(r);
 		return deviceIsAttached;
 	}
 
@@ -376,7 +401,7 @@ public class SensorUtil {
 		}
 		try {
 			if (device == null) {
-				setupDevice(null);
+				createDevice();
 			}
 			if (isDeviceAttached()) {
 				logger.fine("Device reported as attached.");
@@ -421,7 +446,7 @@ public class SensorUtil {
 
 	public void destroy() {
 		tearDownDevice();
-		executor.shutdown();
+		executor.shutdownNow();
 		try {
 			executor.awaitTermination(5, TimeUnit.SECONDS);
 			System.err.println("Shutdown completed. All tasks terminated: " + executor.isTerminated());
@@ -584,7 +609,10 @@ public class SensorUtil {
 			configureSensorRequest(sensor, -2, 0.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_DISTANCE);
 		} else if (type.equals("co2") || type.equals("carbon dioxide")) {
 			configureSensorRequest(sensor, 1, 0.0f, 5000.0f, 0, 20.0f, SensorConfig.QUANTITY_CO2_GAS);
-		} else if (type.equals("force") || type.equals("force 5n")) {
+		} else if (type.equals("force")) {
+			// this will accept both the 10 Newton and 50 Newton switches on the vernier force sensor
+			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
+		} else if (type.equals("force 5n")) {
 			configureSensorRequest(sensor, -2, -4.0f, 4.0f, 0, 0.01f, SensorConfig.QUANTITY_FORCE);
 		} else if (type.equals("force 50n")) {
 			configureSensorRequest(sensor, -1, -40.0f, 40.0f, 0, 0.1f, SensorConfig.QUANTITY_FORCE);
@@ -680,21 +708,41 @@ public class SensorUtil {
 		}
 		if (actualConfig == null) { return false; }
 		if (sensors == null) { return true; }
+		if (actualConfig.isValid()){
+			return true;
+		}
+		System.err.println("actualConfig is not valid (the attached sensors don't include the requested sensors)");
+
 		SensorConfig[] actuals = actualConfig.getSensorConfigs();
-		if (actuals == null || actuals.length != sensors.length) { return false; }
+		if (actuals == null) {
+			System.err.println("  there are no attached sensors");
+			return false;
+		}
+
+		if (sensors == null) {
+			System.err.println("  there are no requested sensors");
+			return false;
+		}
+
+		// Comparing the number of the sensors attached and the number requested isn't important
+		// there could be a temperature and light sensor attached and a temperatue sensor is requested
+		// this is still a valid configuration.
+
 		int[] actualTypes = new int[actuals.length];
-		int[] reqTypes = new int[sensors.length];
 		for (int i = 0; i < actuals.length; i++) {
 			int aType = actuals[i].getType();
 			actualTypes[i] = aType;
+		}
+
+		int[] reqTypes = new int[sensors.length];
+		for (int i = 0; i < sensors.length; i++) {
 			int rType = sensors[i].getType();
 			reqTypes[i] = rType;
-			System.err.println("Recording types: " + aType + ", " + rType);
 		}
-		Arrays.sort(actualTypes);
-		Arrays.sort(reqTypes);
-		System.err.println("Comparing sensor arrays: " + Arrays.toString(actualTypes) + ", " + Arrays.toString(reqTypes));
-		return Arrays.equals(actualTypes, reqTypes);
+
+		System.err.println("  requested Sensors: " + Arrays.toString(reqTypes));
+		System.err.println("  attached  Sensors:  " + Arrays.toString(actualTypes));
+		return false;
 	}
 
 	private boolean reconfigureNextTime = false;
