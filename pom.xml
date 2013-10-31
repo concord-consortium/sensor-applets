@@ -23,6 +23,20 @@
           <target>1.5</target>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Codebase>*</Codebase>
+              <Caller-Allowable-Codebase>*</Caller-Allowable-Codebase>
+              <Application-Name>Sensor Applet</Application-Name>
+              <Permissions>all-permissions</Permissions>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
     </plugins>
     <sourceDirectory>src/main/java</sourceDirectory>
     <resources>
