@@ -8,6 +8,11 @@ import java.util.concurrent.TimeUnit;
 import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 
+import org.concord.sensor.ExperimentConfig;
+import org.concord.sensor.SensorConfig;
+import org.json.JSONStringer;
+import org.json.JSONWriter;
+
 public class JavascriptDataBridge {
     private JSObject window;
     private String handlerPath;
@@ -118,6 +123,53 @@ public class JavascriptDataBridge {
 		        }
 			}
 		}, 0, TimeUnit.MILLISECONDS);
+	}
+
+	public static JSONWriter toJSON(ExperimentConfig config) {
+		JSONWriter writer = new JSONStringer();
+		writer.object();
+		writer.key("valid").value(config.isValid());
+		writer.key("invalidReason").value(config.getInvalidReason());
+		writer.key("period").value(config.getPeriod());
+		writer.key("exactPeriod").value(config.getExactPeriod());
+		writer.key("dataReadPeriod").value(config.getDataReadPeriod());
+		writer.key("deviceName").value(config.getDeviceName());
+		writer.key("sensorConfigs").array();
+		for (SensorConfig cfg : config.getSensorConfigs()) {
+			toJSON(cfg, writer);
+		}
+		writer.endArray();
+		writer.endObject();
+		return writer;
+	}
+
+	public static JSONWriter toJSON(SensorConfig config) {
+		JSONWriter writer = new JSONStringer();
+		toJSON(config, writer);
+		return writer;
+	}
+	
+	public static JSONWriter toJSON(SensorConfig config, JSONWriter writer) {
+		writer.object();
+		writer.key("confirmed").value(config.isConfirmed());
+		writer.key("type").value(config.getType());
+		writer.key("stepSize").value(config.getStepSize());
+		writer.key("port").value(config.getPort());
+		writer.key("portName").value(config.getPortName());
+		writer.key("name").value(config.getName());
+		writer.key("unit").value(config.getUnit());
+		writer.endObject();
+		return writer;
+	}
+
+	public static JSONWriter toJSON(SensorConfig[] configs) {
+		JSONWriter writer = new JSONStringer();
+		writer.array();
+		for (SensorConfig cfg : configs) {
+			toJSON(cfg, writer);
+		}
+		writer.endArray();
+		return writer;
 	}
 
 }

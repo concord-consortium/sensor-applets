@@ -18,6 +18,7 @@ import org.concord.sensor.applet.exception.ConfigureDeviceException;
 import org.concord.sensor.applet.exception.SensorAppletException;
 import org.concord.sensor.impl.SensorRequestImpl;
 import org.concord.sensor.impl.SensorUtilJava;
+import org.json.JSONWriter;
 
 /**
  * This applet expects the following params:
@@ -138,8 +139,8 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
 		});
     }
     
-    public ExperimentConfig getCachedDeviceConfiguration() {
-    	return latestExperimentConfig;
+    public String getCachedDeviceConfiguration() {
+    	return JavascriptDataBridge.toJSON(latestExperimentConfig).toString();
     }
     
     public void getDeviceConfiguration(final String deviceType, final String callbackIndex) {
@@ -163,8 +164,12 @@ public class SensorApplet extends JApplet implements SensorAppletAPI {
     	});
     }
     
-    public SensorConfig[] getCachedAttachedSensors() {
-    	return latestSensorConfig;
+    public String getCachedAttachedSensors() {
+    	try {
+    		JSONWriter json = JavascriptDataBridge.toJSON(latestSensorConfig);
+			return json.toString();
+    	} catch (Exception e) { e.printStackTrace(); }
+    	return "[]";
     }
     
     public void getAttachedSensors(final String deviceType, final String callbackIndex) {
